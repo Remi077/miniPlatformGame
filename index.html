@@ -39,14 +39,15 @@
         scene.add(ground);
 
         // trees image load
-        const image = new Image();
-        image.src = 'https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/tree.png';
+        const treeimage = new Image();
+        treeimage.src = 'https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/tree.png';
         
-        image.onload = () => {
-            console.log("Image loaded:", image);
+        treeimage.onload = () => {
+            console.log("Image loaded:", treeimage);
             // Now you can use this image as a WebGL texture or for other purposes
         };
 
+        createTexture(treeimage);
 
         //create texture
         function createTexture(image) {
