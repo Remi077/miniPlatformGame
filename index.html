@@ -34,6 +34,16 @@
         ground.rotation.x = Math.PI / 2; // Rotate to make it horizontal
         scene.add(ground);
 
+        // trees
+        const image = new Image();
+        image.src = 'https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/tree.png';
+        
+        // image.onload = () => {
+        //     console.log("Image loaded:", image);
+        //     // Now you can use this image as a WebGL texture or for other purposes
+        // };
+                
+
         // Set camera position
         camera.position.z = 5;
         camera.position.y = 5;
