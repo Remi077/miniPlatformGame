@@ -14,10 +14,6 @@
         // Import Three.js
         import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
 
-        // enable transparency
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
         // Scene, Camera, Renderer
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -52,7 +48,11 @@
         //create texture
         function createTexture(image) {
             const gl = canvas.getContext('webgl');
-        
+    
+            // enable transparency
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
             const texture = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D, texture);
         
