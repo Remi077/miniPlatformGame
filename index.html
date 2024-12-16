@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Game with Three.js</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script type="module">
+        // Import Three.js
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
+
+        // Scene, Camera, Renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Player (Cube)
+        const playerGeometry = new THREE.BoxGeometry();
+        const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const player = new THREE.Mesh(playerGeometry, playerMaterial);
+        scene.add(player);
+
+        // Ground (Plane)
+        const groundGeometry = new THREE.PlaneGeometry(50, 50);
+        const groundMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = Math.PI / 2; // Rotate to make it horizontal
+        scene.add(ground);
+
+        // Set camera position
+        camera.position.z = 5;
+        camera.position.y = 5;
+        camera.lookAt(player.position);
+
+        // Movement variables
+        let moveSpeed = 0.1;
+        const keys = {};
+
+        // Handle keyboard input
+        document.addEventListener('keydown', (event) => keys[event.key] = true);
+        document.addEventListener('keyup', (event) => keys[event.key] = false);
+
+        function movePlayer() {
+            if (keys['ArrowUp']) player.position.z -= moveSpeed;
+            if (keys['ArrowDown']) player.position.z += moveSpeed;
+            if (keys['ArrowLeft']) player.position.x -= moveSpeed;
+            if (keys['ArrowRight']) player.position.x += moveSpeed;
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            movePlayer();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
