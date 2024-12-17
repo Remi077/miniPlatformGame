@@ -10,5 +10,8 @@
             "x": 10,
             "y": 10
         }
+    },
+    "CRATE": {
+        "url": "https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/assets/crate.jpg"
     }
 }

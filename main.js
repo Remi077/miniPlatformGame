@@ -16,12 +16,8 @@ const renderer = new THREE.WebGLRenderer({ canvas });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// Player (Cube)
-const playerGeometry = new THREE.BoxGeometry();
-playerGeometry.translate(0,0.5,0);
-const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-const player = new THREE.Mesh(playerGeometry, playerMaterial);
-scene.add(player);
+let player;
+
 
 /* createSprite */
 
@@ -141,7 +137,18 @@ MaterialLoadingPromise.then(MatDict => {
             createSprite(MatDict.TREE, x, y, treeSize/2, treeSize); // scale set to 3 as an example
         }
 
+        //player
+        const playerGeometry = new THREE.BoxGeometry();
+        playerGeometry.translate(0,0.5,0);
+        // const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const playerMaterial = MatDict.CRATE;
+        player = new THREE.Mesh(playerGeometry, playerMaterial);
+        scene.add(player);
+
     })
+
+
+
 
 
 // Set camera position
@@ -149,7 +156,7 @@ const cameraOffsetZ = 5;
 const cameraOffsetY = 5;
 camera.position.z = cameraOffsetZ;
 camera.position.y = cameraOffsetY;
-camera.lookAt(player.position);
+sceneCreated.then(() => camera.lookAt(player.position));
 
 // Movement variables
 let moveSpeed = 0.1;
