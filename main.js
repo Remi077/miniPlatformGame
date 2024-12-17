@@ -1,6 +1,6 @@
         // Import Three.js
-        // import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
-        import * as THREE from 'three';
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
+        // import * as THREE from 'three';
 
         // Dynamically create a canvas element
         const canvas = document.createElement('canvas');
