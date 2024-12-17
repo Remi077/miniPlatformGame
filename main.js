@@ -142,63 +142,6 @@ MaterialLoadingPromise.then(MatDict => {
     })
 
 
-
-
-
-
-// const imageLoadingPromise = loadImagesFromDict(imageUrlsDict);
-
-// imageLoadingPromise
-//     .then(imagesDict  => {
-//         console.log('All images are loaded:', imagesDict);
-
-//         // Access images by their keys
-//         const treeImage = imagesDict.TREE;
-//         const grassImage = imagesDict.GRASS;
-        
-//         console.log('Tree image:', treeImage);
-//         console.log('Grass image:', grassImage);
-
-//         const groundSide = 50; // Size of the ground plane
-//         const numberOfTrees = 10; // Number of trees to create
-        
-//         // Function to generate a random position between 0 and groundSide
-//         function getRandomPosition(max) {
-//             return Math.random() * max; // Random number between 0 and max
-//         }
-        
-//         createSprite(grassImage, 0, 0, 0, groundSide, Math.PI / 2);
-
-//         // Example: Use the images to create sprites
-//         for (let i = 0; i < numberOfTrees; i++) {
-//             const x = getRandomPosition(groundSide) - groundSide / 2; // Center the positions around 0
-//             const y = getRandomPosition(groundSide) - groundSide / 2;
-//             const treeSize = 3;
-//             createSprite(treeImage, x, y, treeSize/2, treeSize); // scale set to 3 as an example
-//         }
-                
-//         // Grass Ground (Plane)
-//     //     const groundGeometry = new THREE.PlaneGeometry(groundSide, groundSide);
-//     //     const groundTexture = new THREE.Texture(grassImage);
-//     //     groundTexture.needsUpdate = true;
-//     //     // Repeat the texture multiple times
-//     //     groundTexture.wrapS = THREE.RepeatWrapping; // Horizontal wrapping
-//     //     groundTexture.wrapT = THREE.RepeatWrapping; // Vertical wrapping
-//     //     const myrepeat = 15;
-//     //     groundTexture.repeat.set(myrepeat, myrepeat); // Number of times to repeat the texture (x, y)
-//     // // const groundMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
-//     //     const groundMaterial = new THREE.MeshBasicMaterial({ map: groundTexture, side: THREE.DoubleSide });
-//     //     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-//     //     ground.rotation.x = Math.PI / 2; // Rotate to make it horizontal
-//     //     scene.add(ground);
-
-//     // createSprite(grassImage, 0, 0, groundSide, Math.PI / 2);
-
-//     })
-//     .catch(error => {
-//         console.error('Error loading images:', error);
-//     });
-
 // Set camera position
 camera.position.z = 5;
 camera.position.y = 5;
