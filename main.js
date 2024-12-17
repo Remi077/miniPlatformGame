@@ -19,11 +19,9 @@ const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const player = new THREE.Mesh(playerGeometry, playerMaterial);
 scene.add(player);
 
+/* createSprite */
 
-function createSprite(image, posx = 0, posy = 0, posz = 0, scale = 1, rotx = 0, roty = 0, transparent = true) {
-    // Create a texture from the image
-    const imageTexture = new THREE.Texture(image);
-    imageTexture.needsUpdate = true;
+function createSprite(imageTexture, posx = 0, posy = 0, posz = 0, scale = 1, rotx = 0, roty = 0, transparent = true) {
 
     // Create a plane geometry for the tree sprite
     const imageGeometry = new THREE.PlaneGeometry(1, 1);  // Adjust size as needed
@@ -44,19 +42,26 @@ function createSprite(image, posx = 0, posy = 0, posz = 0, scale = 1, rotx = 0, 
     return sprite;
 };
 
+/* createMaterial */
 
-function createMaterial(image, transparent, side = THREE.DoubleSide, wrapX = 1, wrapY = 1) {
+function createMaterial(image, transparent = false, wrapX = 1, wrapY = 1) {
     // Create a texture from the image
     const imageTexture = new THREE.Texture(image);
     imageTexture.needsUpdate = true;
+    // Repeat the texture multiple times
+    imageTexture.wrapS = THREE.RepeatWrapping; // Horizontal wrapping
+    imageTexture.wrapT = THREE.RepeatWrapping; // Vertical wrapping
+    imageTexture.repeat.set(wrapX, wrapY); // Number of times to repeat the texture (x, y)
+
     const imageMaterial = new THREE.MeshBasicMaterial({
         map: imageTexture,
         transparent: transparent,  // Ensure transparency is handled
-        side: side, // To show the sprite from both sides if needed
+        side: THREE.DoubleSide, // To show the sprite from both sides if needed
     });
     return imageMaterial;
 }
 
+/* loadImage */
 
 function loadImage(src) {
     return new Promise((resolve, reject) => {
@@ -68,22 +73,22 @@ function loadImage(src) {
     });
 }
 
-
-
-
+/* loadImagesFromDict */
 // Function to load all images and create objects based on type and data from JSON
-function loadImagesFromDict(imageUrlsDict) {
+function loadMaterialsFromDict(imageUrlsDict) {
     const loadPromises = Object.entries(imageUrlsDict).map(([key, data]) => {
+        if (!data || !data.url) {
+            console.warn(`Skipping entry with missing 'url' for key: ${key}`);
+            return Promise.resolve([key, null]); // Return null for missing or invalid data
+        }
         return loadImage(data.url).then(image => {
-            // Process each item based on type (sprite or texture)
-            if (data.type === 'sprite') {
-                const sprite = createSprite(image, , data.scale);
-                return [key, sprite]; // Return the sprite
-            } else if (data.type === 'texture') {
-                const sprite = createSprite(image, data.position, data.scale, 0, 0, );
-                // const texture = createTexture(image, data.repeat);
-                return [key, texture]; // Return the texture
-            }
+            const material = createMaterial(image, 
+                data.transparent ?? false,
+                data.repeat?.x ?? false,
+                data.repeat?.y ?? false,
+            );
+            // const texture = createTexture(image, data.repeat);
+            return [key, material]; // Return the texture
         });
     });
     // Wait for all images to load and return the results
@@ -93,39 +98,47 @@ function loadImagesFromDict(imageUrlsDict) {
 }
 
 
-// // Define your dictionary of image URLs
-const imageUrlsDict = {
-    TREE: 'https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/tree.png',
-    GRASS: 'https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/grass.png',
-};
 
-
-
-const imageLoadingPromise = 
+// STEP 1
+// fetch JSON and populate material dictionary
+const MaterialLoadingPromise = 
 fetch('images.json')
     .then(response => response.json()) // Parse JSON
     .then(data => {
         console.log('Loaded JSON data:', data);
 
         // Use the data (which contains the URL, scale, type, etc.) to load the images and create objects
-        return loadImagesFromDict(data);
+        return loadMaterialsFromDict(data);
     }).catch(error => {
         console.error('Error loading JSON:', error);
     });
 
 
-imageLoadingPromise.then(loadedObjects => {
-        console.log('All objects loaded:', loadedObjects);
+// STEP 2
+// create SCENE if everything loaded correctly
+// const sceneCreated =
+MaterialLoadingPromise.then(MatDict => {
+        console.log('All objects loaded:', MatDict);
 
-        // Example: Use the loaded sprites and textures for your scene
-        // You can add the sprite or texture to the scene here
-        scene.add(loadedObjects.TREE); // Adding the TREE sprite to the scene
-        // If using texture for background or ground:
-        const groundMaterial = new THREE.MeshBasicMaterial({ map: loadedObjects.GRASS });
-        const groundGeometry = new THREE.PlaneGeometry(50, 50);
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = Math.PI / 2; // Rotate to make it horizontal
-        scene.add(ground);
+
+        const groundSide = 50; // Size of the ground plane
+        const numberOfTrees = 10; // Number of trees to create
+        const treeSize = 3;
+    
+        // Function to generate a random position between 0 and groundSide
+        function getRandomPosition(max) {
+            return Math.random() * max; // Random number between 0 and max
+        }
+    
+        //ground
+        createSprite(MatDict.GRASS, 0, 0, 0, groundSide, Math.PI / 2);
+
+        //trees
+        for (let i = 0; i < numberOfTrees; i++) {
+            const x = getRandomPosition(groundSide) - groundSide / 2; // Center the positions around 0
+            const y = getRandomPosition(groundSide) - groundSide / 2;
+            createSprite(MatDict.TREE, x, y, treeSize/2, treeSize); // scale set to 3 as an example
+        }
     })
 
 
@@ -212,23 +225,10 @@ function movePlayer() {
         
 }
 
-
-// Grass Ground (Plane)
-// imageLoadingPromise.then( () =>
-//     const groundGeometry = new THREE.PlaneGeometry(50, 50);
-//     const groundMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
-//     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-//     ground.rotation.x = Math.PI / 2; // Rotate to make it horizontal
-//     scene.add(ground);
-// );
-
 // Animation loop
 function animate() {
     requestAnimationFrame(animate);
     movePlayer();
-    // if (isLoaded && tree && grass) {
-    // tree.rotation.y += 0.005;
-    // }
     renderer.render(scene, camera);
 }
-imageLoadingPromise.then(() => animate());
+MaterialLoadingPromise.then(() => animate());

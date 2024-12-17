@@ -1,13 +1,13 @@
 {
     "TREE": {
-        "url": "https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/tree.png",
+        "url": "https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/assets/tree.png",
         "scale": 3,
-        "type": "sprite"
+        "transparent": true
     },
     "GRASS": {
-        "url": "https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/grass.png",
+        "url": "https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/assets/grass.png",
         "scale": 1,
-        "type": "texture",
+        "transparent": false,
         "repeat": {
             "x": 10,
             "y": 10
