@@ -1,5 +1,9 @@
 // import * as THREE from 'three';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
+// import seedrandom from 'seedrandom';
+import seedrandom from 'https://cdn.skypack.dev/seedrandom';
+
+const rng = seedrandom('666'); // Create a seeded random generator
 
 // Dynamically create a canvas element
 const canvas = document.createElement('canvas');
@@ -123,7 +127,8 @@ MaterialLoadingPromise.then(MatDict => {
     
         // Function to generate a random position between 0 and groundSide
         function getRandomPosition(max) {
-            return Math.random() * max; // Random number between 0 and max
+            // return Math.random() * max; // Random number between 0 and max
+            return rng() * max; // Random number between 0 and max
         }
     
         //ground
