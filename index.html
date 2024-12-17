@@ -1,182 +1,25 @@
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Game with Three.js</title>
     <style>
-        body { margin: 0; overflow: hidden; }
-        canvas { display: block; }
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
     </style>
 </head>
+
 <body>
-    <script type="module">
-        // Import Three.js
-        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
-
-        // Scene, Camera, Renderer
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // Player (Cube)
-        const playerGeometry = new THREE.BoxGeometry();
-        const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-        const player = new THREE.Mesh(playerGeometry, playerMaterial);
-        scene.add(player);
-
-        // Ground (Plane)
-        const groundGeometry = new THREE.PlaneGeometry(50, 50);
-        const groundMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = Math.PI / 2; // Rotate to make it horizontal
-        scene.add(ground);
-
-        // trees image load
-        const treeimage = new Image();
-        treeimage.src = 'https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/tree.png';
-        
-        treeimage.onload = () => {
-            console.log("Image loaded:", treeimage);
-            // Now you can use this image as a WebGL texture or for other purposes
-        };
-
-        createTexture(treeimage);
-
-        //create texture
-        function createTexture(image) {
-            const gl = canvas.getContext('webgl');
-    
-            // enable transparency
-            gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-
-            const texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-        
-            // Upload the image to the texture
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-        
-            // Set texture parameters
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        
-            // Unbind the texture
-            gl.bindTexture(gl.TEXTURE_2D, null);
-        
-            // Now you can use this texture in your rendering
-            render(texture);
-        }
-                
-        
-        //sprite rendering code
-        function render(texture) {
-            // Define vertices for a quad
-            const vertices = new Float32Array([
-                -0.5, -0.5, 0.0, 0.0, // Bottom-left
-                 0.5, -0.5, 1.0, 0.0, // Bottom-right
-                -0.5,  0.5, 0.0, 1.0, // Top-left
-                 0.5,  0.5, 1.0, 1.0, // Top-right
-            ]);
-        
-            const gl = canvas.getContext('webgl');
-            const buffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-            gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
-        
-            const vertexShaderSource = `
-                attribute vec2 a_position;
-                attribute vec2 a_texCoord;
-                varying vec2 v_texCoord;
-        
-                void main() {
-                    gl_Position = vec4(a_position, 0.0, 1.0);
-                    v_texCoord = a_texCoord;
-                }
-            `;
-            const fragmentShaderSource = `
-                precision mediump float;
-                varying vec2 v_texCoord;
-                uniform sampler2D u_texture;
-        
-                void main() {
-                    gl_FragColor = texture2D(u_texture, v_texCoord);
-                }
-            `;
-            const program = createProgram(gl, vertexShaderSource, fragmentShaderSource);
-            gl.useProgram(program);
-        
-            // Get attribute/uniform locations
-            const positionLocation = gl.getAttribLocation(program, 'a_position');
-            const texCoordLocation = gl.getAttribLocation(program, 'a_texCoord');
-            const textureLocation = gl.getUniformLocation(program, 'u_texture');
-        
-            // Set up the position attribute
-            gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 16, 0);
-            gl.enableVertexAttribArray(positionLocation);
-        
-            // Set up the texture coordinate attribute
-            gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 16, 8);
-            gl.enableVertexAttribArray(texCoordLocation);
-        
-            // Bind the texture
-            gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            gl.uniform1i(textureLocation, 0);
-        
-            // Draw the quad
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        }
-        
-        function createProgram(gl, vertexShaderSource, fragmentShaderSource) {
-            const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-            gl.shaderSource(vertexShader, vertexShaderSource);
-            gl.compileShader(vertexShader);
-        
-            const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-            gl.shaderSource(fragmentShader, fragmentShaderSource);
-            gl.compileShader(fragmentShader);
-        
-            const program = gl.createProgram();
-            gl.attachShader(program, vertexShader);
-            gl.attachShader(program, fragmentShader);
-            gl.linkProgram(program);
-        
-            return program;
-        }
-
-        
-        // Set camera position
-        camera.position.z = 5;
-        camera.position.y = 5;
-        camera.lookAt(player.position);
-
-        // Movement variables
-        let moveSpeed = 0.1;
-        const keys = {};
-
-        // Handle keyboard input
-        document.addEventListener('keydown', (event) => keys[event.key] = true);
-        document.addEventListener('keyup', (event) => keys[event.key] = false);
-
-        function movePlayer() {
-            if (keys['ArrowUp']) player.position.z -= moveSpeed;
-            if (keys['ArrowDown']) player.position.z += moveSpeed;
-            if (keys['ArrowLeft']) player.position.x -= moveSpeed;
-            if (keys['ArrowRight']) player.position.x += moveSpeed;
-        }
-
-        // Animation loop
-        function animate() {
-            requestAnimationFrame(animate);
-            movePlayer();
-            renderer.render(scene, camera);
-        }
-        animate();
-    </script>
+    <script type="module" src="./main.js"></script>
 </body>
+
 </html>
