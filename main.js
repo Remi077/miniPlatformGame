@@ -1,6 +1,24 @@
         // Import Three.js
-        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
         // import * as THREE from 'three';
+        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
+        // if (window.location.hostname === 'remi077.github.io' ||
+        //     window.location.hostname === '127.0.0.1'
+        // ) {
+        // }
+        // let THREE;
+        // // if (window.location.hostname === 'remi077.github.io') {
+        // if (window.location.hostname === 'remi077.github.io') {
+        //     // Use CDN version (for production)
+        //     import('https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js').then(module => {
+        //         THREE = module;
+        //         // Now you can use THREE in the rest of your code
+        //     });
+        // } else {
+        //     // Use local version (for development)
+        //     import * as THREE from 'three';
+        //     // import * as THREE from './node_modules/three/build/three.module.js';
+        // }
+
 
         // Dynamically create a canvas element
         const canvas = document.createElement('canvas');
@@ -39,14 +57,14 @@
             treeTexture.needsUpdate = true;
 
             // Create a plane geometry for the tree sprite
-            const treeGeometry = new THREE.PlaneGeometry(1, 1);  // Adjust size as needed
+            const treeGeometry = new THREE.PlaneGeometry(3, 3);  // Adjust size as needed
             const treeMaterial = new THREE.MeshBasicMaterial({
                 map: treeTexture,
                 transparent: true,  // Ensure transparency is handled
                 side: THREE.DoubleSide, // To show the sprite from both sides if needed
             });
             const tree = new THREE.Mesh(treeGeometry, treeMaterial);
-            tree.position.set(0, 0.5, -2);  // Set the position of the tree sprite in the scene
+            tree.position.set(0, 1.5, 0);  // Set the position of the tree sprite in the scene
             scene.add(tree);
         };
 
