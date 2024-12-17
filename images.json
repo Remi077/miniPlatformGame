@@ -1,0 +1,20 @@
+{
+    "TREE": {
+        "url": "https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/tree.png",
+        "scale": 3,
+        "type": "sprite",
+        "position": {
+            "x": 0,
+            "y": 0
+        }
+    },
+    "GRASS": {
+        "url": "https://raw.githubusercontent.com/Remi077/mySimpleJSGame/main/grass.png",
+        "scale": 1,
+        "type": "texture",
+        "repeat": {
+            "x": 10,
+            "y": 10
+        }
+    }
+}
