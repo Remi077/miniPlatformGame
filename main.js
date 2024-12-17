@@ -14,23 +14,18 @@ document.body.appendChild(renderer.domElement);
 
 // Player (Cube)
 const playerGeometry = new THREE.BoxGeometry();
-playerGeometry.translate(0,0,0);
+playerGeometry.translate(0,1,0);
 const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const player = new THREE.Mesh(playerGeometry, playerMaterial);
 scene.add(player);
 
 /* createSprite */
 
-function createSprite(imageTexture, posx = 0, posy = 0, posz = 0, scale = 1, rotx = 0, roty = 0, transparent = true) {
+function createSprite(imageMat, posx = 0, posy = 0, posz = 0, scale = 1, rotx = 0, roty = 0, transparent = true) {
 
     // Create a plane geometry for the tree sprite
     const imageGeometry = new THREE.PlaneGeometry(1, 1);  // Adjust size as needed
-    const imageMaterial = new THREE.MeshBasicMaterial({
-        map: imageTexture,
-        transparent: true,  // Ensure transparency is handled
-        side: THREE.DoubleSide, // To show the sprite from both sides if needed
-    });
-    const sprite = new THREE.Mesh(imageGeometry, imageMaterial);
+    const sprite = new THREE.Mesh(imageGeometry, imageMat);
 
     sprite.position.set(posx, posz, posy);  // Set the position of the tree sprite in the scene
     sprite.rotation.x = rotx; 
@@ -58,6 +53,7 @@ function createMaterial(image, transparent = false, wrapX = 1, wrapY = 1) {
         transparent: transparent,  // Ensure transparency is handled
         side: THREE.DoubleSide, // To show the sprite from both sides if needed
     });
+
     return imageMaterial;
 }
 
@@ -84,8 +80,8 @@ function loadMaterialsFromDict(imageUrlsDict) {
         return loadImage(data.url).then(image => {
             const material = createMaterial(image, 
                 data.transparent ?? false,
-                data.repeat?.x ?? false,
-                data.repeat?.y ?? false,
+                data.repeat?.x ?? 1,
+                data.repeat?.y ?? 1,
             );
             // const texture = createTexture(image, data.repeat);
             return [key, material]; // Return the texture
@@ -116,7 +112,7 @@ fetch('images.json')
 
 // STEP 2
 // create SCENE if everything loaded correctly
-// const sceneCreated =
+const sceneCreated =
 MaterialLoadingPromise.then(MatDict => {
         console.log('All objects loaded:', MatDict);
 
@@ -139,6 +135,7 @@ MaterialLoadingPromise.then(MatDict => {
             const y = getRandomPosition(groundSide) - groundSide / 2;
             createSprite(MatDict.TREE, x, y, treeSize/2, treeSize); // scale set to 3 as an example
         }
+
     })
 
 
@@ -174,4 +171,4 @@ function animate() {
     movePlayer();
     renderer.render(scene, camera);
 }
-MaterialLoadingPromise.then(() => animate());
+sceneCreated.then(() => animate());
