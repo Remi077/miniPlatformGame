@@ -14,7 +14,7 @@ document.body.appendChild(renderer.domElement);
 
 // Player (Cube)
 const playerGeometry = new THREE.BoxGeometry();
-playerGeometry.translate(0,1,0);
+playerGeometry.translate(0,0.5,0);
 const playerMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
 const player = new THREE.Mesh(playerGeometry, playerMaterial);
 scene.add(player);
@@ -117,7 +117,7 @@ MaterialLoadingPromise.then(MatDict => {
         console.log('All objects loaded:', MatDict);
 
 
-        const groundSide = 50; // Size of the ground plane
+        const groundSide = 10; // Size of the ground plane
         const numberOfTrees = 10; // Number of trees to create
         const treeSize = 3;
     
@@ -140,8 +140,10 @@ MaterialLoadingPromise.then(MatDict => {
 
 
 // Set camera position
-camera.position.z = 5;
-camera.position.y = 5;
+const cameraOffsetZ = 5;
+const cameraOffsetY = 5;
+camera.position.z = cameraOffsetZ;
+camera.position.y = cameraOffsetY;
 camera.lookAt(player.position);
 
 // Movement variables
@@ -158,8 +160,8 @@ function movePlayer() {
     if (keys['ArrowLeft']) player.position.x -= moveSpeed;
     if (keys['ArrowRight']) player.position.x += moveSpeed;
     // camera.lookAt(player.position);
-    camera.position.z = player.position.z + 5;
-    camera.position.y = player.position.y + 5;
+    camera.position.z = player.position.z + cameraOffsetZ;
+    camera.position.y = player.position.y + cameraOffsetY;
     camera.position.x = player.position.x;
     camera.lookAt(player.position);
         
