@@ -3,6 +3,12 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.m
 // import seedrandom from 'seedrandom';
 import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 
+// Example revision hash
+const revision = "1.01"; // Replace with actual Git hash
+
+// Add it to the div
+document.getElementById('revision-info').innerText = `Version: ${revision}`;
+
 // pseudoseed
 const rng = seedrandom('666'); // Create a seeded random generator
 
