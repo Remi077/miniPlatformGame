@@ -6,13 +6,24 @@ import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 // pseudoseed
 const rng = seedrandom('666'); // Create a seeded random generator
 
+function isMobile() {
+    return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+// Usage
+if (isMobile()) {
+    console.log("You're on a mobile device!");
+} else {
+    console.log("You're on a desktop!");
+}
+
+
 // Movement variables
 const numPlat = 8
 const numPlatToTheLeft = 4
 const groundLength = 6;
 const groundGap = 2;
 const moveSpeed = 0.1;
-const groundSpeed = 0.15;
+const groundSpeed = isMobile() ? 0.15/3 : 0.15;
 // const groundSpeed = 0;
 const groundInitPos = (numPlat-numPlatToTheLeft) * (groundLength + groundGap);
 const groundLimit = -numPlatToTheLeft * (groundLength + groundGap);
