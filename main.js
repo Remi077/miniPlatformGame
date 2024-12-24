@@ -4,7 +4,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.m
 import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 
 // Example revision hash
-const revision = "1.01"; // Replace with actual Git hash
+const revision = "1.02"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -34,7 +34,7 @@ const groundSpeed = isMobile() ? 0.15/1.5 : 0.15;
 const groundInitPos = (numPlat-numPlatToTheLeft) * (groundLength + groundGap);
 const groundLimit = -numPlatToTheLeft * (groundLength + groundGap);
 const jumpInitVerticalSpeed = 0.3;
-const gravitySpeedDecrement = 0.02;
+const gravitySpeedDecrement = isMobile() ? 0.015 : 0.02;
 const groundMinY = -1.5;
 const groundMaxY = 1.5;
 const groundLengthRatioMin = 0.35;
