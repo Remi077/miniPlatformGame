@@ -1,10 +1,13 @@
 // import * as THREE from 'three';
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
-// import seedrandom from 'seedrandom';
+import * as THREE    from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
+// import * as FBX from 'https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/loaders/FBXLoader.js';
+import { FBXLoader } from './FBXLoader.js'
+
+
 import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 
 // Example revision hash
-const revision = "1.02"; // Replace with actual Git hash
+const revision = "1.03"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -113,6 +116,7 @@ function createMaterial(image, transparent = false, wrapX = 1, wrapY = 1) {
     return imageMaterial;
 }
 
+
 /* loadImage */
 
 function loadImage(src) {
@@ -127,6 +131,7 @@ function loadImage(src) {
 
 /* loadImagesFromDict */
 // Function to load all images and create objects based on type and data from JSON
+let matDictV = {};
 function loadMaterialsFromDict(imageUrlsDict) {
     const loadPromises = Object.entries(imageUrlsDict).map(([key, data]) => {
         if (!data || !data.url) {
@@ -139,13 +144,14 @@ function loadMaterialsFromDict(imageUrlsDict) {
                 data.repeat?.x ?? 1,
                 data.repeat?.y ?? 1,
             );
-            // const texture = createTexture(image, data.repeat);
             return [key, material]; // Return the texture
         });
     });
     // Wait for all images to load and return the results
     return Promise.all(loadPromises).then(results => {
-        return Object.fromEntries(results); // Convert back to a dictionary { key: sprite/texture }
+        matDictV = Object.fromEntries(results);
+        return matDictV;
+        // return Object.fromEntries(results); // Convert back to a dictionary { key: sprite/texture }
     });
 }
 
@@ -169,13 +175,113 @@ fetch('images.json')
         console.error('Error loading JSON:', error);
     });
 
+// // Add an Ambient Light (provides even lighting across the scene)
+// const ambientLight = new THREE.AmbientLight(0xffffff, 5); // Color: white, Intensity: 0.5
+// scene.add(ambientLight);
+
 
 // STEP 2
+// Load FBXs after materials are loaded
+let chara;
+// Initialize the loader
+let loader;
+let mixer;
+const MeshLoadingPromise =
+MaterialLoadingPromise.then((materials) => {
+    console.log('Materials loaded, now loading FBX models...');
+
+    loader = new FBXLoader();
+    const fbxPath = "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/Ty.fbx";
+    // Use an array to store promises for loading multiple FBX files
+    // const fbxFiles = ['model1.fbx', 'model2.fbx']; // Replace with your FBX file paths
+    const fbxFiles = [fbxPath]; // Replace with your FBX file paths
+    const fbxLoadingPromises = fbxFiles.map((file) =>
+        new Promise((resolve, reject) => {
+            loader.load(
+                file,
+                (object) => {
+                    // Set the material to the loaded object if necessary
+                    object.traverse((child) => {
+                        if (child.isMesh) {
+                            console.log(child.name, child.material);
+                            // child.material = materials; // Apply the loaded materials
+                            if (child.material){
+                                // Optional: Replace material with light-independent MeshBasicMaterial
+                                child.material = new THREE.MeshBasicMaterial({
+                                    map: child.material.map // Retain the original diffuse map
+                                });
+                            }
+                        }
+                    });
+
+                    // Scale or position the model if needed
+                    let charaScale = 0.013;
+                    object.scale.set(charaScale, charaScale, charaScale); // Scale down if model is too large
+                    object.rotation.set(0, Math.PI/2, 0);
+                    object.position.set(0, -0.5, 0);
+
+                    console.log(`${file} mesh loaded`);
+                    chara = object;
+                    resolve(object); // Resolve the promise with the loaded object
+                },
+                undefined, // Progress callback
+                (error) => {
+                    console.error(`Error loading ${file}:`, error);
+                    reject(error); // Reject the promise on error
+                }
+            );
+        })
+    );
+
+    // Wait for all FBX files to load
+    return Promise.all(fbxLoadingPromises);
+}).then((loadedFBXObjects) => {
+    console.log('All FBX models loaded:', loadedFBXObjects);
+
+    // Add loaded objects to the scene or perform additional processing
+    // loadedFBXObjects.forEach((fbx) => {
+    //     scene.add(fbx); // Assuming `scene` is your THREE.Scene instance
+    // });
+    scene.add(chara);
+    mixer =  new THREE.AnimationMixer(chara);
+    const animPath = "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/Ty@Running.fbx";
+
+    // Initialize the AnimationMixer with the loaded character
+    mixer = new THREE.AnimationMixer(chara);
+
+    // // If the character FBX also contains animations
+    // if (character.animations && character.animations.length > 0) {
+    //     const action = mixer.clipAction(character.animations[0]); // Play the first animation
+    //     action.play();
+    // }
+
+    loader.load(animPath, (animationFBX) => {
+        // Extract the animation clips from the FBX
+        const animationClip = animationFBX.animations[0]; // Assuming the first animation is what you want
+    
+        // Add the animation clip to the mixer
+        const action = mixer.clipAction(animationClip);
+        action.play();
+    });
+
+    
+}).catch((error) => {
+    console.error('Error during FBX loading:', error);
+});
+
+
+
+// STEP 3
 // create SCENE if everything loaded correctly
 let grounds = [];
 let citySprites = [];
 const sceneCreated =
-MaterialLoadingPromise.then(MatDict => {
+MeshLoadingPromise.then(
+
+    
+    // MaterialLoadingPromise.then(
+    meshes => {
+        const MatDict = matDictV;
         console.log('All objects loaded:', MatDict);
 
 
@@ -209,9 +315,13 @@ MaterialLoadingPromise.then(MatDict => {
         playerGeometry.translate(0,0.5,0);
         const playerMaterial = MatDict.CRATE;
         player = new THREE.Mesh(playerGeometry, playerMaterial);
+        player.visible = false; // Hide the player mesh from the scene
         scene.add(player);
 
     })
+
+
+
 
     let nextColIdx = 0;
     function isCollidingGrounds() {
@@ -227,7 +337,7 @@ MaterialLoadingPromise.then(MatDict => {
                 break; // Exit the loop as soon as a collision is detected
             }
           }
-        console.info('numCalculations',numCalculations);
+        // console.info('numCalculations',numCalculations);
         return result;
     }
 
@@ -248,14 +358,6 @@ MaterialLoadingPromise.then(MatDict => {
                 return topY; // Return the top Y coordinate of the overlap
             }
 
-            // // Find the overlap between the two boxes (the intersection area)
-            // const overlapBox = box1.intersect(box2);
-
-            // // Get the top Y coordinate of the overlapBox
-            // const topY = overlapBox.max.y;
-            // console.info('overlapBox.max.y',overlapBox.max.y)
-
-            // return topY; // Return the top Y coordinate of the overlap
         }
 
         return null; // No collision
@@ -306,14 +408,10 @@ function movePlayer() {
             if (isTouchingGround == null) {
                 playerVerticalSpeed -= gravitySpeedDecrement;
             } else {
-                //stick player to surface top
-                // player.position.y =  ground.position.y + (ground.geometry.parameters.height / 2) * ground.scale.y; // Calculate top height
                 player.position.y =  isTouchingGround; // Calculate top height
                 playerVerticalSpeed = 0;
             }
-            // player.position.y = playerNextPosition;
             // console.log('playerVerticalSpeed',playerVerticalSpeed);
-            // // console.log('playerNextPosition',playerNextPosition);
             // console.log('player.position.y',player.position.y);
             // console.log('isTouchingGround',isTouchingGround);
             // keyAPressed = true;
@@ -326,7 +424,7 @@ function movePlayer() {
     // if (isColliding(player, ground)) {
     //     console.log('Collision detected!');
     // }
-
+    chara.position.y = player.position.y;
         
 }
 
@@ -347,9 +445,6 @@ function moveGround(thisGround) {
 
 let citySpriteLeftIdx = 0;
 function moveBG() {
-    // citySprites.forEach(sprite => 
-        // moveSprite(sprite)
-    // let leftSprite = citySprites[citySpriteLeftIdx];
     let leftSpritePosX = citySprites[citySpriteLeftIdx].position.x - bgSpeed;
     let posX = leftSpritePosX;
     for (let i = 0; i < numCitySprites; i++) {
@@ -363,19 +458,26 @@ function moveBG() {
     }
 }
 
-// function moveSprite(thisSprite) {
-//     thisSprite.position.x -= bgSpeed;
-//     if (thisSprite.position.x < bgLimit) {
-//         thisSprite.position.x = bgInitPos;
-//     }
-// }
+const clock = new THREE.Clock();
+function updateAnimations(){
+    // Update the mixer (animation playback)
+    if (mixer) {
+        const delta = clock.getDelta(); // Time elapsed since last frame
+        mixer.update(delta);
+    } else {
+        console.error("no mixer found")
+    }
+}
 
+// let frameCount = 0;
 // Animation loop
 function animate() {
+    // console.log('frame',frameCount++)
     requestAnimationFrame(animate);
     movePlayer();
     moveGrounds();
     moveBG();
+    updateAnimations();
     renderer.render(scene, camera);
 }
 sceneCreated.then(() => animate());
