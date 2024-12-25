@@ -13,7 +13,8 @@ const revision = "1.03"; // Replace with actual Git hash
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
 
 // pseudoseed
-const rng = seedrandom('666'); // Create a seeded random generator
+// const rng = seedrandom('666'); // Create a seeded random generator
+const rng = seedrandom(); // Create a seeded random generator
 
 function isMobile() {
     return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
