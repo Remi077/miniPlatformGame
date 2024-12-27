@@ -63,6 +63,10 @@ export function initializeTextSprite(thisDocument, text, thisCamera, scale = 10,
 
     alignHUBToCamera(sprite, thisCamera, alignX, alignY, padX, padY);
 
+    sprite.textCanvas = textCanvas;
+    sprite.context = context;
+    sprite.texture = texture;
+
     return sprite;
 }
 
@@ -113,29 +117,6 @@ export function loadImage(src) {
         img.src = src;
         img.onload = () => resolve(img); // Resolve promise when image is loaded
         img.onerror = () => reject(new Error(`Failed to load image: ${src}`)); // Reject promise if there's an error
-    });
-}
-
-/* loadImagesFromDict */
-// Function to load all images and create objects based on type and data from JSON
-export function loadMaterialsFromDict(imageUrlsDict) {
-    const loadPromises = Object.entries(imageUrlsDict).map(([key, data]) => {
-        if (!data || !data.url) {
-            console.warn(`Skipping entry with missing 'url' for key: ${key}`);
-            return Promise.resolve([key, null]); // Return null for missing or invalid data
-        }
-        return loadImage(data.url).then(image => {
-            const material = createMaterial(image,
-                data.transparent ?? false,
-                data.repeat?.x ?? 1,
-                data.repeat?.y ?? 1,
-            );
-            return [key, material]; // Return the texture
-        });
-    });
-    // Wait for all images to load and return the results
-    return Promise.all(loadPromises).then(results => {
-        return Object.fromEntries(results); // Convert back to a dictionary { key: sprite/texture }
     });
 }
 
@@ -212,6 +193,7 @@ export function loadImages(jsonData) {
 /* loadMeshes */
 // Function to load all meshes and create objects based on type and data from JSON
 export function loadMeshes(jsonData) {
+    const loader = new FBXLoader();
     const loadPromises = Object.entries(jsonData).map(([key, data]) => {
         if (!data || !data.url) {
             console.warn(`Skipping entry with missing 'url' for key: ${key}`);
@@ -304,7 +286,7 @@ export function loadAnimation(loader, mixer, src) {
     return new Promise((resolve, reject) => {
         loader.load(
             src,
-            (animation) => {
+            (animationFBX) => {
                 console.log(`${src} animation loaded`);
                 // Extract the animation clips from the FBX
                 const animationClip = animationFBX.animations[0]; // Assuming the first animation is what you want
@@ -321,4 +303,21 @@ export function loadAnimation(loader, mixer, src) {
             }
         );
     })
+}
+
+export function updateTextSprite(sprite, newText, color = 'Red') {
+    const { textCanvas, context, texture } = sprite;
+    console.log("textCanvas, context, texture", textCanvas, context, texture);
+
+    // Clear the canvas
+    context.clearRect(0, 0, textCanvas.width, textCanvas.height);
+
+    // Redraw the text
+    context.fillStyle = color;
+    context.font = '30px Arial';
+    context.textAlign = 'center';
+    context.fillText(newText, textCanvas.width / 2, textCanvas.height / 2);
+
+    // Refresh the texture
+    texture.needsUpdate = true;
 }
