@@ -21,6 +21,13 @@
             "y": 5
         }
     },
+    "HALFBUILDING": {
+        "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/building_seamless.jpg",
+        "repeat": {
+            "x": 0.5,
+            "y": 5
+        }
+    },
     "CITY": {
         "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/cityscape3.jpg",
         "repeat": {
