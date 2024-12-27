@@ -10,9 +10,9 @@ import {
     alignHUBToCamera,
     initializeTextSprite,
     createSprite,
-    loadMaterialsFromDict,
     updateAnimations,
-    loadResourcesFromJson
+    loadResourcesFromJson,
+    updateTextSprite
 } from './myFunctions.js'
 import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 
@@ -21,7 +21,7 @@ import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.038"; // Replace with actual Git hash
+const revision = "1.039"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -116,15 +116,19 @@ const bgInitPos = (numCitySprites - numCitySpritesToTheLeft - 1) * citySpriteSca
 // GAMEPLAY GLOBAL VARIABLES
 /*-----------------------------------------------------*/
 
-let scoreSprite, livesSprite, gameOverSprite;
+let resourcesDict; //resources dictionary
+let matDict; //material dictionary
+let charaDict; //meshes dictionary
+let charaMixer;
+let scoreSprite, livesSprite, messageSprite;
 let player;
 let grounds = [];
 let citySprites = [];
 let buildMat, buildHalfMat;
-let chara;
-let loader;
-let mixer;
-let matDictV = {};
+// let chara;
+// let loader;
+// let mixer;
+// let matDictV = {};
 const keys = {};
 let playerVerticalSpeed = 0;
 let isTouchingGround = null;
@@ -132,12 +136,13 @@ let gameOver = false;
 let hasJumped = false;
 let keyAPressed = false;//TODO: make it a dictionary
 let keyPPressed = false;
-let liveSpriteInitOffset, scoreSpriteInitOffset, gameOverSpriteInitOffset;
+let liveSpriteInitOffset, scoreSpriteInitOffset, messageSpriteInitOffset;
 let citySpriteLeftIdx = 0;
 let frameCount = 0;
 let deltaTime;
 let pause = false;
 let nextColIdx = 0;
+let runningAction;
 
 /*-----------------------------------------------------*/
 // STEP 0
@@ -172,208 +177,123 @@ document.addEventListener('touchstart', jump);
 // fetch JSON and populate material dictionary
 /*-----------------------------------------------------*/
 
-let MaterialLoadingPromise;
-if (1) {
-    MaterialLoadingPromise =
-        (
-            fetch('images.json')
-                .then(response => response.json()) // Parse JSON
-                .then(data => {
-                    console.log('Loaded JSON data:', data);
-
-                    // Use the data (which contains the URL, scale, type, etc.) to load the images and create objects
-                    return loadMaterialsFromDict(data);
-                }).catch(error => {
-                    console.error('Error loading JSON:', error);
-                })
-        );
-} else {
-    MaterialLoadingPromise =
-        (
-            loadResourcesFromJson('resources.json').then(
-                data => { return data["IMAGES"] }
-            ).catch(error => {
-                console.error('Error loading JSON:', error);
-            })
-        );
-}
-// Use top-level await to unwrap the Promise 
-try {
-    matDictV = await MaterialLoadingPromise;
-    console.log(matDictV);
-    // Now dictionary is assigned the resolved value 
-} catch (error) { console.error('Error:', error); }
-
-/*-----------------------------------------------------*/
-// STEP 2
-// Load FBXs after materials are loaded
-/*-----------------------------------------------------*/
-
-const MeshLoadingPromise =
-    MaterialLoadingPromise.then((materials) => {
-        console.log('Materials loaded, now loading FBX models...');
-
-        loader = new FBXLoader();
-        const fbxPath = "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/Ty.fbx";
-        // Use an array to store promises for loading multiple FBX files
-        // const fbxFiles = ['model1.fbx', 'model2.fbx']; // Replace with your FBX file paths
-        const fbxFiles = [fbxPath]; // Replace with your FBX file paths
-        const fbxLoadingPromises = fbxFiles.map((file) =>
-            new Promise((resolve, reject) => {
-                loader.load(
-                    file,
-                    (object) => {
-                        // Set the material to the loaded object if necessary
-                        object.traverse((child) => {
-                            if (child.isMesh) {
-                                // console.log(child.name, child.material);
-                                // child.material = materials; // Apply the loaded materials
-                                if (child.material) {
-                                    // Optional: Replace material with light-independent MeshBasicMaterial
-                                    child.material = new THREE.MeshBasicMaterial({
-                                        map: child.material.map // Retain the original diffuse map
-                                    });
-                                }
-                            }
-                        });
-
-                        // Scale or position the model if needed
-                        let charaScale = 0.013;
-                        object.scale.set(charaScale, charaScale, charaScale); // Scale down if model is too large
-                        object.rotation.set(0, Math.PI / 2, 0);
-                        object.position.set(0, -0.5, 0);
-
-                        console.log(`${file} mesh loaded`);
-                        chara = object;
-                        resolve(object); // Resolve the promise with the loaded object
-                    },
-                    undefined, // Progress callback
-                    (error) => {
-                        console.error(`Error loading ${file}:`, error);
-                        reject(error); // Reject the promise on error
-                    }
-                );
-            })
-        );
-
-        // Wait for all FBX files to load
-        return Promise.all(fbxLoadingPromises);
-    }).then((loadedFBXObjects) => {
-        console.log('All FBX models loaded:', loadedFBXObjects);
-
-        scene.add(chara);
-        // mixer = new THREE.AnimationMixer(chara);
-        const animPath = "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/Ty@Running.fbx";
-
-        // Initialize the AnimationMixer with the loaded character
-        mixer = new THREE.AnimationMixer(chara);
-
-        // // If the character FBX also contains animations
-        // if (character.animations && character.animations.length > 0) {
-        //     const action = mixer.clipAction(character.animations[0]); // Play the first animation
-        //     action.play();
-        // }
-
-        loader.load(animPath, (animationFBX) => {
-            // Extract the animation clips from the FBX
-            const animationClip = animationFBX.animations[0]; // Assuming the first animation is what you want
-
-            // Add the animation clip to the mixer
-            const action = mixer.clipAction(animationClip);
-            action.play();
-        });
-
-
-    }).catch((error) => {
-        console.error('Error during FBX loading:', error);
-    });
+const ResourceLoadingPromise = loadResourcesFromJson('resources.json').then(
+    resources => {
+        resourcesDict = resources;
+        matDict = resourcesDict["IMAGES"];
+        charaDict = resourcesDict["MESHES"]["CHARA"];
+        charaMixer = charaDict["MIXER"];
+    }
+).catch(error => {
+    console.error('Error loading JSON:', error);
+});
 
 /*-----------------------------------------------------*/
 // STEP 3
 // create SCENE if everything loaded correctly
 /*-----------------------------------------------------*/
 
-const sceneCreated =
-    MeshLoadingPromise.then(
+const sceneCreated = ResourceLoadingPromise.then(() => {
 
+    //city
+    let posX = -citySpriteScale;
+    for (let i = 0; i < numCitySprites; i++) {
+        const citySprite = createSprite(matDict.CITY, posX, citySpriteDepth, citySpriteHeight, citySpriteScale, 0)
+        scene.add(citySprite);
+        citySprite.visible = !hideBg;
+        citySprites.push(citySprite);
+        posX += citySpriteScale;
+    }
 
-        // MaterialLoadingPromise.then(
-        meshes => {
-            const MatDict = matDictV;
-            console.log('All objects loaded:', MatDict);
+    const groundGeom = new THREE.BoxGeometry();
+    buildMat = matDict.BUILDING;
+    buildHalfMat = matDict.HALFBUILDING;
+    // buildHalfMat = new THREE.MeshBasicMaterial({ color: 0xB8B8B8 });
+    let groundMat = buildMat;
 
+    posX = ((groundLength / 2));//- 0.01); //small offset
+    let curScaleX = groundLength
+    for (let i = 0; i < numPlat; i++) {
+        curScaleX = (i != 0) ? (groundLength * getRandom(groundLengthRatioMin, groundLengthRatioMax)) : groundLength;
+        groundMat = buildMat;
+        if ((curScaleX / groundHeight) < 0.15)
+            groundMat = buildHalfMat;
+        const ground = new THREE.Mesh(groundGeom, groundMat);
+        ground.scale.set(curScaleX, groundHeight, curScaleX);
+        ground.position.set(posX,
+            (i != 0) ? (groundCenterY + getRandom(groundMinY, groundMaxY)) : groundCenterY,
+            0);
+        posX += groundLength + groundGap
+        // ground.visible = false;
+        scene.add(ground);
+        grounds.push(ground);
+    }
 
-            //city
-            let posX = -citySpriteScale;
-            for (let i = 0; i < numCitySprites; i++) {
-                const citySprite = createSprite(MatDict.CITY, posX, citySpriteDepth, citySpriteHeight, citySpriteScale, 0)
-                scene.add(citySprite);
-                citySprite.visible = !hideBg;
-                citySprites.push(citySprite);
-                posX += citySpriteScale;
-            }
+    //player
+    const playerGeometry = new THREE.BoxGeometry();
+    playerGeometry.translate(0, 0.5, 0);
+    const playerMaterial = matDict.CRATE;
+    player = new THREE.Mesh(playerGeometry, playerMaterial);
+    player.visible = false; // Hide the player mesh from the scene
+    scene.add(player);
+    camera.lookAt(player.position);
 
-            const groundGeom = new THREE.BoxGeometry();
-            buildMat = MatDict.BUILDING;
-            buildHalfMat = MatDict.HALFBUILDING;
-            // buildHalfMat = new THREE.MeshBasicMaterial({ color: 0xB8B8B8 });
-            let groundMat = buildMat;
+    //character
+    let chara = charaDict["MESH"]
+    let charaScale = 0.013;
+    chara.scale.set(charaScale, charaScale, charaScale); // Scale down if model is too large
+    chara.rotation.set(0, Math.PI / 2, 0);
+    chara.position.set(0, -0.5, 0);
+    scene.add(chara);
 
-            posX = ((groundLength / 2) - 0.1); //small offset
-            let curScaleX = groundLength
-            for (let i = 0; i < numPlat; i++) {
-                curScaleX = (i != 0) ? (groundLength * getRandom(groundLengthRatioMin, groundLengthRatioMax)) : groundLength;
-                groundMat = buildMat;
-                if ((curScaleX / groundHeight) < 0.15)
-                    groundMat = buildHalfMat;
-                const ground = new THREE.Mesh(groundGeom, groundMat);
-                ground.scale.set(curScaleX, groundHeight, curScaleX);
-                ground.position.set(posX,
-                    (i != 0) ? (groundCenterY + getRandom(groundMinY, groundMaxY)) : groundCenterY,
-                    0);
-                posX += groundLength + groundGap
-                // ground.visible = false;
-                scene.add(ground);
-                grounds.push(ground);
-            }
+    //HUD
 
-            //player
-            const playerGeometry = new THREE.BoxGeometry();
-            playerGeometry.translate(0, 0.5, 0);
-            const playerMaterial = MatDict.CRATE;
-            player = new THREE.Mesh(playerGeometry, playerMaterial);
-            player.visible = false; // Hide the player mesh from the scene
-            scene.add(player);
-            camera.lookAt(player.position);
+    scoreSprite = initializeTextSprite(document, "Score: 0", camera, 0.1, 'black', 'right', 'top', 0.3, 0.2);
+    livesSprite = initializeTextSprite(document, "Lives: 3", camera, 0.1, 'black', 'left', 'top', 0.3, 0.2);
+    // messageSprite = initializeTextSprite(document, "Get ready!\n(tap to jump)\n3", camera, 0.2, 'Red');
+    messageSprite = initializeTextSprite(document, "Get ready!", camera, 0.2, 'Red');
+    // messageSprite.visible = false;
 
-            //HUD
+    scene.add(livesSprite);
+    scene.add(scoreSprite);
+    scene.add(messageSprite);
 
-            scoreSprite = initializeTextSprite(document, "Score: 0", camera, 0.1, 'black', 'right', 'top', 0.3, 0.2);
-            livesSprite = initializeTextSprite(document, "Lives: 3", camera, 0.1, 'black', 'left', 'top', 0.3, 0.2);
-            gameOverSprite = initializeTextSprite(document, "Game Over", camera, 0.2, 'Red');
-            gameOverSprite.visible = false;
+    //death plane (debug)
+    if (showDeathPlane) {
+        const deathPlane = new THREE.Mesh(new THREE.PlaneGeometry(), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0, 0), side: THREE.DoubleSide }));
+        deathPlane.rotation.x = (Math.PI / 2);
+        deathPlane.position.set(0, deathPlaneHeight, 0);
+        deathPlane.scale.set(30, 30, 30);
+        scene.add(deathPlane);
+    }
 
-            scene.add(livesSprite);
-            scene.add(scoreSprite);
-            scene.add(gameOverSprite);
-
-            //death plane (debug)
-            if (showDeathPlane) {
-                const deathPlane = new THREE.Mesh(new THREE.PlaneGeometry(), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0, 0), side: THREE.DoubleSide }));
-                deathPlane.rotation.x = (Math.PI / 2);
-                deathPlane.position.set(0, deathPlaneHeight, 0);
-                deathPlane.scale.set(30, 30, 30);
-                scene.add(deathPlane);
-            }
-
-        })
+})
 
 /*-----------------------------------------------------*/
 // STEP 4
 // Main gameplay loop
 /*-----------------------------------------------------*/
 
-sceneCreated.then(() => animate());
+// sceneCreated.then(() => getReady()).then(() => animate());
+
+async function setupScene() {
+    try {
+        await sceneCreated;         // Wait for the scene to be created
+        await waitFor(1);
+        updateTextSprite(messageSprite, "2");
+        renderer.render(scene, camera);
+        await getReady(1, "1");          // Wait for 3 seconds while updating HUD and rendering
+        await getReady(1, "Go!");          // Wait for 3 seconds while updating HUD and rendering
+        messageSprite.visible = false;
+        runningAction = charaDict["ANIMATIONS"]["RUNNING"];
+        runningAction.play();
+        animate();                  // Start animation loop
+    } catch (error) {
+        console.error("Error in scene setup or animation:", error);
+    }
+}
+
+setupScene();
 
 /*-----------------------------------------------------*/
 // GAMEPLAY FUNCTIONS
@@ -384,7 +304,8 @@ sceneCreated.then(() => animate());
 function isDead() {
     if (player.position.y <= deathPlaneHeight) {
         console.log("GAMEOVER")
-        gameOverSprite.visible = true;
+        messageSprite.innerText = "Game Over";
+        messageSprite.visible = true;
         // renderer.render(scene, camera);
         doPause();
         return true;
@@ -405,6 +326,7 @@ function doPause() {
 function isCollidingGrounds() {
     let result = null;
     let numCalculations = 0;
+    // if (frameCount < 3) return true;
     for (let i = 0; i < 2; i++) { //only check current and next platform
         let idx = (i + nextColIdx) % numPlat;//start from current platform
         let ground = grounds[idx];
@@ -501,6 +423,7 @@ function movePlayer(delta) {
     // if (isColliding(player, ground)) {
     //     console.log('Collision detected!');
     // }
+    let chara = charaDict["MESH"]
     chara.position.y = player.position.y;
 
 }
@@ -511,11 +434,11 @@ function updateHUD() {
     if (frameCount < 3) {
         liveSpriteInitOffset = alignHUBToCamera(livesSprite, camera, "left", "top", 0.3, 0.2);
         scoreSpriteInitOffset = alignHUBToCamera(scoreSprite, camera, "right", "top", 0.3, 0.2);
-        gameOverSpriteInitOffset = alignHUBToCamera(gameOverSprite, camera);
+        messageSpriteInitOffset = alignHUBToCamera(messageSprite, camera);
     } else {
         livesSprite.position.copy(camera.position).add(liveSpriteInitOffset);
         scoreSprite.position.copy(camera.position).add(scoreSpriteInitOffset);
-        gameOverSprite.position.copy(camera.position).add(gameOverSpriteInitOffset);
+        messageSprite.position.copy(camera.position).add(messageSpriteInitOffset);
     }
 }
 
@@ -567,8 +490,20 @@ function animate() {
     if (!pause) {
         moveGrounds(deltaTime);
         moveBG(deltaTime);
-        updateAnimations(mixer, deltaTime);
+        updateAnimations(charaMixer, deltaTime);
     }
     renderer.render(scene, camera);
 }
 
+function waitFor(seconds) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, seconds * 1000); // Resolve the promise after 3 seconds
+    });
+}
+
+function getReady(seconds) {
+    updateHUD();
+    // messageSprite.innerText = text;
+    renderer.render(scene, camera);
+    return waitFor(seconds);
+}
