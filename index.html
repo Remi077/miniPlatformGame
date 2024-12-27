@@ -24,6 +24,8 @@
           bottom: 10px;
           right: 10px;
           background: rgba(0, 0, 0, 0.7);
+          pointer-events: none; /* Prevents the #revision-info div from being interacted with (e.g., tapping, clicking, or dragging). */
+          user-select: none; /* Disables text selection, so double-tapping or holding on the text won't highlight it. */
           color: white;
           padding: 5px 10px;
           border-radius: 5px;
@@ -32,12 +34,7 @@
       }
     </style>
 </head>
-<!-- <body>
-    <script type="module">
-        import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
-        import { FBXLoader } from './FBXLoader.js'
-</script>
-</body> -->
+
 <body>
     <script type="module" src="main.js"></script>
 </body>
