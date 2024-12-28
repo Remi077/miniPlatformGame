@@ -298,7 +298,7 @@ async function setupScene() {
         drawHUD();
         renderer.render(scene, camera);
         await waitFor(1);
-        drawHUD("");
+        messageScreen = "";
 
         //character starts running
         runningAction = charaDict.ANIMATIONS.RUNNING;
