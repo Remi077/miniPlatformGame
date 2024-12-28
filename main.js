@@ -136,6 +136,7 @@ let runningAction;
 let score = 0;
 let lives = 3;
 let messageScreen = "";
+let gameOver = false;
 
 /*-----------------------------------------------------*/
 // STEP 0
