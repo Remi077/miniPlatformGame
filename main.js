@@ -4,15 +4,11 @@
 
 // import * as THREE from 'three';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
-// import * as FBX from 'https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/loaders/FBXLoader.js';
-import { FBXLoader } from './FBXLoader.js'
 import {
-    alignHUBToCamera,
-    initializeTextSprite,
     createSprite,
     updateAnimations,
     loadResourcesFromJson,
-    updateTextSprite
+    alignHUBToCamera
 } from './myFunctions.js'
 import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 
@@ -21,7 +17,7 @@ import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.039"; // Replace with actual Git hash
+const revision = "1.040"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -116,37 +112,35 @@ const bgInitPos = (numCitySprites - numCitySpritesToTheLeft - 1) * citySpriteSca
 // GAMEPLAY GLOBAL VARIABLES
 /*-----------------------------------------------------*/
 
-let resourcesDict; //resources dictionary
-let matDict; //material dictionary
-let charaDict; //meshes dictionary
+let resourcesDict = {}; //resources dictionary
+let matDict = {}; //material dictionary
+let charaDict = {}; //meshes dictionary
 let charaMixer;
-let scoreSprite, livesSprite, messageSprite;
+let HUBDict = {};
 let player;
 let grounds = [];
 let citySprites = [];
 let buildMat, buildHalfMat;
-// let chara;
-// let loader;
-// let mixer;
-// let matDictV = {};
 const keys = {};
 let playerVerticalSpeed = 0;
 let isTouchingGround = null;
-let gameOver = false;
 let hasJumped = false;
 let keyAPressed = false;//TODO: make it a dictionary
 let keyPPressed = false;
-let liveSpriteInitOffset, scoreSpriteInitOffset, messageSpriteInitOffset;
 let citySpriteLeftIdx = 0;
 let frameCount = 0;
 let deltaTime;
 let pause = false;
 let nextColIdx = 0;
 let runningAction;
+let score = 0;
+let lives = 3;
+let messageScreen = "";
 
 /*-----------------------------------------------------*/
 // STEP 0
 // create scene, camera and renderer
+// HUB overlay
 // clock and input listeners
 /*-----------------------------------------------------*/
 
@@ -164,6 +158,21 @@ const renderer = new THREE.WebGLRenderer({ canvas });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+// Create a 2D canvas for overlay
+const hudCanvas = document.getElementById('hud-canvas');
+hudCanvas.width = window.innerWidth;
+hudCanvas.height = window.innerHeight;
+
+const hudContext = hudCanvas.getContext('2d');
+
+// Clear the canvas (transparent background)
+hudContext.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+
+// Example: Draw a simple text overlay (debugging HUD)
+hudContext.fillStyle = 'rgba(255, 255, 255, 0.9)'; // Semi-transparent white
+hudContext.font = '20px Arial';
+hudContext.fillText('HUD Overlay', 10, 30);
+
 // clock
 const clock = new THREE.Clock();
 
@@ -171,29 +180,40 @@ const clock = new THREE.Clock();
 document.addEventListener('keydown', (event) => keys[event.code] = true);
 document.addEventListener('keyup', (event) => keys[event.code] = false);
 document.addEventListener('touchstart', jump);
+window.addEventListener('resize', () => {
+    // Resize the 3D canvas
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    // Resize the HUD canvas
+    hudCanvas.width = window.innerWidth;
+    hudCanvas.height = window.innerHeight;
+});
+
 
 /*-----------------------------------------------------*/
 // STEP 1
 // fetch JSON and populate material dictionary
 /*-----------------------------------------------------*/
 
-const ResourceLoadingPromise = loadResourcesFromJson('resources.json').then(
+const step1ResourceLoading = loadResourcesFromJson('resources.json').then(
     resources => {
         resourcesDict = resources;
-        matDict = resourcesDict["IMAGES"];
-        charaDict = resourcesDict["MESHES"]["CHARA"];
-        charaMixer = charaDict["MIXER"];
+        matDict = resourcesDict.IMAGES;
+        charaDict = resourcesDict.MESHES.CHARA;
+        charaMixer = charaDict.MIXER;
     }
 ).catch(error => {
     console.error('Error loading JSON:', error);
 });
 
 /*-----------------------------------------------------*/
-// STEP 3
+// STEP 2
 // create SCENE if everything loaded correctly
 /*-----------------------------------------------------*/
 
-const sceneCreated = ResourceLoadingPromise.then(() => {
+const step2SceneCreating = step1ResourceLoading.then(() => {
 
     //city
     let posX = -citySpriteScale;
@@ -239,24 +259,12 @@ const sceneCreated = ResourceLoadingPromise.then(() => {
     camera.lookAt(player.position);
 
     //character
-    let chara = charaDict["MESH"]
+    let chara = charaDict.MESH
     let charaScale = 0.013;
     chara.scale.set(charaScale, charaScale, charaScale); // Scale down if model is too large
     chara.rotation.set(0, Math.PI / 2, 0);
     chara.position.set(0, -0.5, 0);
     scene.add(chara);
-
-    //HUD
-
-    scoreSprite = initializeTextSprite(document, "Score: 0", camera, 0.1, 'black', 'right', 'top', 0.3, 0.2);
-    livesSprite = initializeTextSprite(document, "Lives: 3", camera, 0.1, 'black', 'left', 'top', 0.3, 0.2);
-    // messageSprite = initializeTextSprite(document, "Get ready!\n(tap to jump)\n3", camera, 0.2, 'Red');
-    messageSprite = initializeTextSprite(document, "Get ready!", camera, 0.2, 'Red');
-    // messageSprite.visible = false;
-
-    scene.add(livesSprite);
-    scene.add(scoreSprite);
-    scene.add(messageSprite);
 
     //death plane (debug)
     if (showDeathPlane) {
@@ -270,24 +278,34 @@ const sceneCreated = ResourceLoadingPromise.then(() => {
 })
 
 /*-----------------------------------------------------*/
-// STEP 4
+// STEP 3
 // Main gameplay loop
 /*-----------------------------------------------------*/
 
-// sceneCreated.then(() => getReady()).then(() => animate());
 
 async function setupScene() {
     try {
-        await sceneCreated;         // Wait for the scene to be created
-        await waitFor(1);
-        updateTextSprite(messageSprite, "2");
+
+        // Wait for the scene and hub to be crated
+        await step2SceneCreating;
+
+        messageScreen = "Get Ready...";
+        drawHUD();
         renderer.render(scene, camera);
-        await getReady(1, "1");          // Wait for 3 seconds while updating HUD and rendering
-        await getReady(1, "Go!");          // Wait for 3 seconds while updating HUD and rendering
-        messageSprite.visible = false;
-        runningAction = charaDict["ANIMATIONS"]["RUNNING"];
+        await waitFor(1);
+        messageScreen = "Go!";
+        drawHUD();
+        renderer.render(scene, camera);
+        await waitFor(1);
+        drawHUD("");
+
+        //character starts running
+        runningAction = charaDict.ANIMATIONS.RUNNING;
         runningAction.play();
-        animate();                  // Start animation loop
+
+        // Start animation loop
+        animate();
+
     } catch (error) {
         console.error("Error in scene setup or animation:", error);
     }
@@ -304,9 +322,7 @@ setupScene();
 function isDead() {
     if (player.position.y <= deathPlaneHeight) {
         console.log("GAMEOVER")
-        messageSprite.innerText = "Game Over";
-        messageSprite.visible = true;
-        // renderer.render(scene, camera);
+        messageScreen = "GAMEOVER";
         doPause();
         return true;
     } else {
@@ -333,6 +349,8 @@ function isCollidingGrounds() {
         result = isColliding(player, ground);
         numCalculations++;
         if (result != null) {
+            if (nextColIdx != idx) 
+                score++;//we landed on new platform, score goes up
             nextColIdx = idx;//remember last collided platform
             break; // Exit the loop as soon as a collision is detected
         }
@@ -423,23 +441,9 @@ function movePlayer(delta) {
     // if (isColliding(player, ground)) {
     //     console.log('Collision detected!');
     // }
-    let chara = charaDict["MESH"]
+    let chara = charaDict.MESH;
     chara.position.y = player.position.y;
 
-}
-
-// updateHUD function
-
-function updateHUD() {
-    if (frameCount < 3) {
-        liveSpriteInitOffset = alignHUBToCamera(livesSprite, camera, "left", "top", 0.3, 0.2);
-        scoreSpriteInitOffset = alignHUBToCamera(scoreSprite, camera, "right", "top", 0.3, 0.2);
-        messageSpriteInitOffset = alignHUBToCamera(messageSprite, camera);
-    } else {
-        livesSprite.position.copy(camera.position).add(liveSpriteInitOffset);
-        scoreSprite.position.copy(camera.position).add(scoreSpriteInitOffset);
-        messageSprite.position.copy(camera.position).add(messageSpriteInitOffset);
-    }
 }
 
 // moveGrounds function
@@ -486,7 +490,7 @@ function animate() {
     requestAnimationFrame(animate);
     deltaTime = clock.getDelta(); // Time elapsed since last frame
     movePlayer(deltaTime);
-    updateHUD();
+    drawHUD();
     if (!pause) {
         moveGrounds(deltaTime);
         moveBG(deltaTime);
@@ -501,9 +505,27 @@ function waitFor(seconds) {
     });
 }
 
-function getReady(seconds) {
-    updateHUD();
-    // messageSprite.innerText = text;
-    renderer.render(scene, camera);
-    return waitFor(seconds);
+function drawHUD() {
+
+    // console.log("new score is ",score);
+    // Clear the canvas for redrawing
+    hudContext.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+
+    // Text box styles
+    hudContext.font = '20px Arial';
+    hudContext.fillStyle = 'rgba(0, 0, 0, 0.9)';
+    hudContext.textAlign = 'left';
+
+    // Draw "Score" at the top-left corner
+    hudContext.fillText(`Score: ${score}`, 10, 30); // 10px from left, 30px from top
+
+    // Draw "Lives" at the top-right corner
+    hudContext.textAlign = 'right'; // Align text to the right edge
+    hudContext.fillText(`Lives: ${lives}`, hudCanvas.width - 10, 30); // 10px from right, 30px from top
+
+    // Draw a message in the center
+    hudContext.fillStyle = 'rgba(255, 0, 0, 0.9)';
+    hudContext.font = '60px Arial';
+    hudContext.textAlign = 'center'; // Align text to the center
+    hudContext.fillText(messageScreen, hudCanvas.width / 2, hudCanvas.height / 2); // Centered horizontally and vertically
 }
