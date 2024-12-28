@@ -1,42 +1,56 @@
-
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Game with Three.js</title>
+
+    <!-- Styles for body and canvas -->
     <style>
         body {
             margin: 0;
-            overflow: hidden;
+            overflow: hidden; /* Prevents scrollbars */
         }
 
         canvas {
-            display: block;
+            display: block; /* Removes inline space for canvas */
+        }
+
+        #hud-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%; /* Covers the full viewport width */
+            height: 100%; /* Covers the full viewport height */
+            pointer-events: none; /* Prevents user interaction */
+            z-index: 1; /* Ensures it appears above the 3D scene */
+        }
+
+        #revision-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            pointer-events: none; /* Prevents interaction */
+            user-select: none; /* Disables text selection */
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 1000; /* Ensures it appears above everything else */
         }
     </style>
-    <div id="revision-info"></div>
-
-    <style>
-      #revision-info {
-          position: fixed;
-          bottom: 10px;
-          right: 10px;
-          background: rgba(0, 0, 0, 0.7);
-          pointer-events: none; /* Prevents the #revision-info div from being interacted with (e.g., tapping, clicking, or dragging). */
-          user-select: none; /* Disables text selection, so double-tapping or holding on the text won't highlight it. */
-          color: white;
-          padding: 5px 10px;
-          border-radius: 5px;
-          font-size: 12px;
-          z-index: 1000;
-      }
-    </style>
 </head>
-
 <body>
+    <!-- Revision Info -->
+    <div id="revision-info">Version: 1.0</div>
+
+    <!-- HUD Container -->
+    <div id="hud-container">
+        <canvas id="hud-canvas"></canvas>
+    </div>
+
+    <!-- JavaScript file for 3D game logic -->
     <script type="module" src="main.js"></script>
 </body>
-
 </html>
