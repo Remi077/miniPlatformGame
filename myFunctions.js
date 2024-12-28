@@ -410,3 +410,10 @@ export function updateTextSprite(spriteData, newText, color = 'Red') {
     // Refresh the texture
     texture.needsUpdate = true;
 }
+
+/* waitFor */
+export function waitFor(seconds) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, seconds * 1000); // Resolve the promise after 3 seconds
+    });
+}
