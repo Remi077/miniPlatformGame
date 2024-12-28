@@ -8,7 +8,7 @@ import {
     createSprite,
     updateAnimations,
     loadResourcesFromJson,
-    alignHUBToCamera
+    waitFor
 } from './myFunctions.js'
 import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 
@@ -17,7 +17,7 @@ import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.040"; // Replace with actual Git hash
+const revision = "1.041"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -116,15 +116,16 @@ let resourcesDict = {}; //resources dictionary
 let matDict = {}; //material dictionary
 let charaDict = {}; //meshes dictionary
 let charaMixer;
-let HUBDict = {};
 let player;
 let grounds = [];
 let citySprites = [];
 let buildMat, buildHalfMat;
 const keys = {};
+// let keysOnPress = {};
+// let keysOnRelease = {};
 let playerVerticalSpeed = 0;
 let isTouchingGround = null;
-let hasJumped = false;
+// let hasJumped = false;
 let keyAPressed = false;//TODO: make it a dictionary
 let keyPPressed = false;
 let citySpriteLeftIdx = 0;
@@ -137,9 +138,44 @@ let score = 0;
 let lives = 3;
 let messageScreen = "";
 let gameOver = false;
+let gameActions = {}
+//TODO create a game state + game state manager
 
 /*-----------------------------------------------------*/
-// STEP 0
+// GAME ACTIONS TO KEY MAPPING AND REVERSE
+/*-----------------------------------------------------*/
+let gameActionToKeyMap = {
+    //camera actions (debug)
+    moveCamUp: { key: 'ArrowUp' },
+    moveCamDown: { key: 'ArrowDown' },
+    moveCamRight: { key: 'ArrowRight' },
+    moveCamLeft: { key: 'ArrowLeft' },
+    moveCamFront: { key: 'KeyZ' },
+    moveCamBack: { key: 'KeyX' },
+    //debug actions
+    moveByOneFrame: { key: 'KeyA', OnPress: true }, //triggered once only at keydown
+    //pause
+    pause: { key: 'KeyP', OnRelease: true }, //triggered once only at release
+    //gameplay actions
+    jump: { key: 'Space', OnPress: true },
+};
+// Reverse the mapping to get the action from the key (press or release)
+let keyPressToGameActionMap = {};
+let keyPressOnceToGameActionMap = {};
+let keyReleaseToGameActionMap = {};
+for (let gameAction in gameActionToKeyMap) {
+    let mapping = gameActionToKeyMap[gameAction]
+    if (mapping.OnRelease) {
+        keyReleaseToGameActionMap[mapping.key] = gameAction;
+    } else if (mapping.OnPress) {
+        keyPressOnceToGameActionMap[mapping.key] = gameAction;
+    } else {
+        keyPressToGameActionMap[mapping.key] = gameAction;
+    }
+}
+
+/*-----------------------------------------------------*/
+// PRELIMINARIES
 // create scene, camera and renderer
 // HUB overlay
 // clock and input listeners
@@ -172,14 +208,30 @@ hudContext.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
 // Example: Draw a simple text overlay (debugging HUD)
 hudContext.fillStyle = 'rgba(255, 255, 255, 0.9)'; // Semi-transparent white
 hudContext.font = '20px Arial';
-hudContext.fillText('HUD Overlay', 10, 30);
+// hudContext.fillText('HUD Overlay', 10, 30);
 
 // clock
 const clock = new THREE.Clock();
 
 // Handle keyboard input
-document.addEventListener('keydown', (event) => keys[event.code] = true);
-document.addEventListener('keyup', (event) => keys[event.code] = false);
+document.addEventListener('keydown', (event) => {
+    // keysOnPress[event.code] = !keys[event.code];
+    if (keyPressToGameActionMap[event.code]) {  //if mapping exists
+        // console.log("setting gameaction",keyPressToGameActionMap[event.code]);
+        gameActions[keyPressToGameActionMap[event.code]] = true;
+    } else if (keyPressOnceToGameActionMap[event.code]) {
+        gameActions[keyPressOnceToGameActionMap[event.code]] = !keys[event.code];
+    }
+    keys[event.code] = true;//true all the time when key is pressed
+});
+document.addEventListener('keyup', (event) => {
+    // keysOnRelease[event.code] = keys[event.code];//true only once when key is released
+    keys[event.code] = false;
+    if (keyPressToGameActionMap[event.code])  //if mapping exists
+        gameActions[keyPressToGameActionMap[event.code]] = false;
+    if (keyReleaseToGameActionMap[event.code]) //if mapping exists
+        gameActions[keyReleaseToGameActionMap[event.code]] = true;
+});
 document.addEventListener('touchstart', jump);
 window.addEventListener('resize', () => {
     // Resize the 3D canvas
@@ -194,111 +246,43 @@ window.addEventListener('resize', () => {
 
 
 /*-----------------------------------------------------*/
-// STEP 1
-// fetch JSON and populate material dictionary
+// SETUP AND START GAME
 /*-----------------------------------------------------*/
 
-const step1ResourceLoading = loadResourcesFromJson('resources.json').then(
-    resources => {
-        resourcesDict = resources;
+setupAndStartGame();
+
+
+
+
+
+
+
+
+/*-----------------------------------------------------*/
+/*-----------------------------------------------------*/
+/*FUNCTIONS--------------------------------------------*/
+/*-----------------------------------------------------*/
+/*-----------------------------------------------------*/
+
+
+/*-----------------------------------------------------*/
+// SETUP AND START GAME function
+/*-----------------------------------------------------*/
+
+async function setupAndStartGame() {
+    try {
+
+        // load all resources into dictionaries from JSON
+        resourcesDict = await loadResourcesFromJson('resources.json');
         matDict = resourcesDict.IMAGES;
         charaDict = resourcesDict.MESHES.CHARA;
         charaMixer = charaDict.MIXER;
-    }
-).catch(error => {
-    console.error('Error loading JSON:', error);
-});
 
-/*-----------------------------------------------------*/
-// STEP 2
-// create SCENE if everything loaded correctly
-/*-----------------------------------------------------*/
+        // create the scene
+        createScene();
 
-const step2SceneCreating = step1ResourceLoading.then(() => {
-
-    //city
-    let posX = -citySpriteScale;
-    for (let i = 0; i < numCitySprites; i++) {
-        const citySprite = createSprite(matDict.CITY, posX, citySpriteDepth, citySpriteHeight, citySpriteScale, 0)
-        scene.add(citySprite);
-        citySprite.visible = !hideBg;
-        citySprites.push(citySprite);
-        posX += citySpriteScale;
-    }
-
-    const groundGeom = new THREE.BoxGeometry();
-    buildMat = matDict.BUILDING;
-    buildHalfMat = matDict.HALFBUILDING;
-    // buildHalfMat = new THREE.MeshBasicMaterial({ color: 0xB8B8B8 });
-    let groundMat = buildMat;
-
-    posX = ((groundLength / 2));//- 0.01); //small offset
-    let curScaleX = groundLength
-    for (let i = 0; i < numPlat; i++) {
-        curScaleX = (i != 0) ? (groundLength * getRandom(groundLengthRatioMin, groundLengthRatioMax)) : groundLength;
-        groundMat = buildMat;
-        if ((curScaleX / groundHeight) < 0.15)
-            groundMat = buildHalfMat;
-        const ground = new THREE.Mesh(groundGeom, groundMat);
-        ground.scale.set(curScaleX, groundHeight, curScaleX);
-        ground.position.set(posX,
-            (i != 0) ? (groundCenterY + getRandom(groundMinY, groundMaxY)) : groundCenterY,
-            0);
-        posX += groundLength + groundGap
-        // ground.visible = false;
-        scene.add(ground);
-        grounds.push(ground);
-    }
-
-    //player
-    const playerGeometry = new THREE.BoxGeometry();
-    playerGeometry.translate(0, 0.5, 0);
-    const playerMaterial = matDict.CRATE;
-    player = new THREE.Mesh(playerGeometry, playerMaterial);
-    player.visible = false; // Hide the player mesh from the scene
-    scene.add(player);
-    camera.lookAt(player.position);
-
-    //character
-    let chara = charaDict.MESH
-    let charaScale = 0.013;
-    chara.scale.set(charaScale, charaScale, charaScale); // Scale down if model is too large
-    chara.rotation.set(0, Math.PI / 2, 0);
-    chara.position.set(0, -0.5, 0);
-    scene.add(chara);
-
-    //death plane (debug)
-    if (showDeathPlane) {
-        const deathPlane = new THREE.Mesh(new THREE.PlaneGeometry(), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0, 0), side: THREE.DoubleSide }));
-        deathPlane.rotation.x = (Math.PI / 2);
-        deathPlane.position.set(0, deathPlaneHeight, 0);
-        deathPlane.scale.set(30, 30, 30);
-        scene.add(deathPlane);
-    }
-
-})
-
-/*-----------------------------------------------------*/
-// STEP 3
-// Main gameplay loop
-/*-----------------------------------------------------*/
-
-
-async function setupScene() {
-    try {
-
-        // Wait for the scene and hub to be crated
-        await step2SceneCreating;
-
-        messageScreen = "Get Ready...";
-        drawHUD();
-        renderer.render(scene, camera);
-        await waitFor(1);
-        messageScreen = "Go!";
-        drawHUD();
-        renderer.render(scene, camera);
-        await waitFor(1);
-        messageScreen = "";
+        // run the intro
+        await intro();
 
         //character starts running
         runningAction = charaDict.ANIMATIONS.RUNNING;
@@ -312,7 +296,21 @@ async function setupScene() {
     }
 }
 
-setupScene();
+/*-----------------------------------------------------*/
+// intro function
+/*-----------------------------------------------------*/
+
+async function intro() {
+    messageScreen = "Get Ready...";
+    drawHUD();
+    renderer.render(scene, camera);
+    await waitFor(1);
+    messageScreen = "Go!";
+    drawHUD();
+    renderer.render(scene, camera);
+    await waitFor(1);
+    messageScreen = "";
+}
 
 /*-----------------------------------------------------*/
 // GAMEPLAY FUNCTIONS
@@ -350,7 +348,7 @@ function isCollidingGrounds() {
         result = isColliding(player, ground);
         numCalculations++;
         if (result != null) {
-            if (nextColIdx != idx) 
+            if (nextColIdx != idx)
                 score++;//we landed on new platform, score goes up
             nextColIdx = idx;//remember last collided platform
             break; // Exit the loop as soon as a collision is detected
@@ -385,57 +383,46 @@ function isColliding(object1, object2) {
 // jump function
 
 function jump() {
-    if (isTouchingGround != null && !hasJumped) {
+    // console.log('ACTIONJUMP');
+    if (isTouchingGround != null) {
         console.log('JUMP');
         playerVerticalSpeed += jumpInitVerticalSpeed;
-        hasJumped = true;
     }
-}
+}   
 
 // move Player function
+
 
 function movePlayer(delta) {
     if (freeCam) {
         const moveCam = moveSpeed * delta;
-        if (keys['ArrowUp']) camera.position.z -= moveCam;
-        if (keys['ArrowDown']) camera.position.z += moveCam;
-        if (keys['ArrowLeft']) camera.position.x -= moveCam;
-        if (keys['ArrowRight']) camera.position.x += moveCam;
-        if (keys['KeyZ']) camera.position.y += moveCam;
-        if (keys['KeyX']) camera.position.y -= moveCam;
+        if (gameActions.moveCamUp) camera.position.z -= moveCam;
+        if (gameActions.moveCamDown) camera.position.z += moveCam;
+        if (gameActions.moveCamLeft) camera.position.x -= moveCam;
+        if (gameActions.moveCamRight) camera.position.x += moveCam;
+        if (gameActions.moveCamFront) camera.position.y += moveCam;
+        if (gameActions.moveCamBack) camera.position.y -= moveCam;
         // camera.lookAt(chara);
     }
-    if (keys['KeyP']) {
-        if (!keyPPressed) { doPause(); keyPPressed = true; }
-    } else {
-        keyPPressed = false;
-    }
 
-    if (pause)
-        return;
+    if (gameActions.pause) doPause();
 
-    if (keys['Space']) {
-        jump();
-    } else {
-        hasJumped = false;
-    }
-    if (keys['KeyA']
+    if (pause) return;
+
+    if (gameActions.jump) jump();
+
+    if (gameActions.moveByOneFrame
         || true
     ) {
-        if (!keyAPressed) {
-            player.position.y += playerVerticalSpeed * delta;
-            isTouchingGround = isCollidingGrounds(); //collision check
-            gameOver = isDead();
-            if (isTouchingGround == null) {
-                playerVerticalSpeed -= gravitySpeedDecrement * delta;
-            } else {
-                player.position.y = isTouchingGround; // Calculate top height
-                playerVerticalSpeed = 0;
-            }
-            // keyAPressed = true;
+        player.position.y += playerVerticalSpeed * delta;
+        isTouchingGround = isCollidingGrounds(); //collision check
+        gameOver = isDead();
+        if (isTouchingGround == null) {
+            playerVerticalSpeed -= gravitySpeedDecrement * delta;
+        } else {
+            player.position.y = isTouchingGround; // Calculate top height
+            playerVerticalSpeed = 0;
         }
-    } else {
-        keyAPressed = false;
     }
 
     //     Check for collision
@@ -487,8 +474,6 @@ function moveBG(delta) {
 // Animation loop
 function animate() {
     // console.log('frame',frameCount++)
-    frameCount++;
-    requestAnimationFrame(animate);
     deltaTime = clock.getDelta(); // Time elapsed since last frame
     movePlayer(deltaTime);
     drawHUD();
@@ -498,14 +483,15 @@ function animate() {
         updateAnimations(charaMixer, deltaTime);
     }
     renderer.render(scene, camera);
+    frameCount++;
+    //clear the onpress/onrelease events now that they have been sampled 
+    //in that loop to avoid resampling
+    releaseStickyActions();
+
+    requestAnimationFrame(animate); //call animate recursively on next frame 
 }
 
-function waitFor(seconds) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, seconds * 1000); // Resolve the promise after 3 seconds
-    });
-}
-
+// drawHUD loop
 function drawHUD() {
 
     // console.log("new score is ",score);
@@ -529,4 +515,92 @@ function drawHUD() {
     hudContext.font = '60px Arial';
     hudContext.textAlign = 'center'; // Align text to the center
     hudContext.fillText(messageScreen, hudCanvas.width / 2, hudCanvas.height / 2); // Centered horizontally and vertically
+}
+
+// createScene loop
+function createScene() {
+    /*--------*/
+    //city background
+    /*--------*/
+    let posX = -citySpriteScale;
+    for (let i = 0; i < numCitySprites; i++) {
+        const citySprite = createSprite(matDict.CITY, posX, citySpriteDepth, citySpriteHeight, citySpriteScale, 0)
+        scene.add(citySprite);
+        citySprite.visible = !hideBg;
+        citySprites.push(citySprite);
+        posX += citySpriteScale;
+    }
+
+    /*--------*/
+    //buildings
+    /*--------*/
+    const groundGeom = new THREE.BoxGeometry();
+    buildMat = matDict.BUILDING;
+    buildHalfMat = matDict.HALFBUILDING;
+    // buildHalfMat = new THREE.MeshBasicMaterial({ color: 0xB8B8B8 });
+    let groundMat = buildMat;
+
+    posX = ((groundLength / 2));//- 0.01); //small offset
+    let curScaleX = groundLength
+    for (let i = 0; i < numPlat; i++) {
+        curScaleX = (i != 0) ? (groundLength * getRandom(groundLengthRatioMin, groundLengthRatioMax)) : groundLength;
+        groundMat = buildMat;
+        if ((curScaleX / groundHeight) < 0.15)
+            groundMat = buildHalfMat;
+        const ground = new THREE.Mesh(groundGeom, groundMat);
+        ground.scale.set(curScaleX, groundHeight, curScaleX);
+        ground.position.set(posX,
+            (i != 0) ? (groundCenterY + getRandom(groundMinY, groundMaxY)) : groundCenterY,
+            0);
+        posX += groundLength + groundGap
+        // ground.visible = false;
+        scene.add(ground);
+        grounds.push(ground);
+    }
+
+    /*--------*/
+    //player box (invisible/for collision only)
+    /*--------*/
+    const playerGeometry = new THREE.BoxGeometry();
+    playerGeometry.translate(0, 0.5, 0);
+    const playerMaterial = matDict.CRATE;
+    player = new THREE.Mesh(playerGeometry, playerMaterial);
+    player.visible = false; // Hide the player mesh from the scene
+    scene.add(player);
+    camera.lookAt(player.position);
+
+    /*--------*/
+    //character mesh
+    /*--------*/
+    let chara = charaDict.MESH
+    let charaScale = 0.013;
+    chara.scale.set(charaScale, charaScale, charaScale); // Scale down if model is too large
+    chara.rotation.set(0, Math.PI / 2, 0);
+    chara.position.set(0, -0.5, 0);
+    scene.add(chara);
+
+    /*--------*/
+    //death plane (debug)
+    /*--------*/
+    if (showDeathPlane) {
+        const deathPlane = new THREE.Mesh(new THREE.PlaneGeometry(), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0, 0), side: THREE.DoubleSide }));
+        deathPlane.rotation.x = (Math.PI / 2);
+        deathPlane.position.set(0, deathPlaneHeight, 0);
+        deathPlane.scale.set(30, 30, 30);
+        scene.add(deathPlane);
+    }
+}
+
+// releaseStickyActions
+function releaseStickyActions() {
+    for (const [action, actionValue] of Object.entries(gameActions)) {
+        if (actionValue) {
+            let mapping = gameActionToKeyMap[action];
+            if (mapping)
+                if (mapping.OnPress || mapping.OnRelease){
+                    gameActions[action] = false
+                    // console.log("Releasing gameaction",gameActions[action]);
+                }
+        }
+    }
 }
