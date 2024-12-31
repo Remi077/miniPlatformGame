@@ -5,7 +5,7 @@
 // import * as THREE from 'three';
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js';
 import {
-    createSprite,
+    createPlane,
     updateAnimations,
     loadResourcesFromJson,
     waitFor
@@ -17,7 +17,7 @@ import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.041"; // Replace with actual Git hash
+const revision = "1.05"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -119,7 +119,7 @@ let charaMixer;
 let player;
 let grounds = [];
 let citySprites = [];
-let buildMat, buildHalfMat;
+// let buildMat, buildHalfMat;
 const keys = {};
 // let keysOnPress = {};
 // let keysOnRelease = {};
@@ -142,6 +142,12 @@ let gameActions = {}
 //TODO create a game state + game state manager
 
 /*-----------------------------------------------------*/
+// SAVE STATES
+/*-----------------------------------------------------*/
+
+// let citySpritesInitPositions = [];
+
+/*-----------------------------------------------------*/
 // GAME ACTIONS TO KEY MAPPING AND REVERSE
 /*-----------------------------------------------------*/
 let gameActionToKeyMap = {
@@ -158,6 +164,7 @@ let gameActionToKeyMap = {
     pause: { key: 'KeyP', OnRelease: true }, //triggered once only at release
     //gameplay actions
     jump: { key: 'Space', OnPress: true },
+    forceGameOver: { key: 'KeyO', OnPress: true },
 };
 // Reverse the mapping to get the action from the key (press or release)
 let keyPressToGameActionMap = {};
@@ -216,12 +223,11 @@ const clock = new THREE.Clock();
 // Handle keyboard input
 document.addEventListener('keydown', (event) => {
     // keysOnPress[event.code] = !keys[event.code];
-    if (keyPressToGameActionMap[event.code]) {  //if mapping exists
-        // console.log("setting gameaction",keyPressToGameActionMap[event.code]);
+    if (keyPressToGameActionMap[event.code])   //if mapping exists
         gameActions[keyPressToGameActionMap[event.code]] = true;
-    } else if (keyPressOnceToGameActionMap[event.code]) {
+    else if (keyPressOnceToGameActionMap[event.code])
         gameActions[keyPressOnceToGameActionMap[event.code]] = !keys[event.code];
-    }
+
     keys[event.code] = true;//true all the time when key is pressed
 });
 document.addEventListener('keyup', (event) => {
@@ -229,10 +235,23 @@ document.addEventListener('keyup', (event) => {
     keys[event.code] = false;
     if (keyPressToGameActionMap[event.code])  //if mapping exists
         gameActions[keyPressToGameActionMap[event.code]] = false;
-    if (keyReleaseToGameActionMap[event.code]) //if mapping exists
+    else if (keyPressOnceToGameActionMap[event.code])
+        gameActions[keyPressOnceToGameActionMap[event.code]] = false;
+    else if (keyReleaseToGameActionMap[event.code]) //if mapping exists
         gameActions[keyReleaseToGameActionMap[event.code]] = true;
 });
-document.addEventListener('touchstart', jump);
+document.addEventListener('touchstart', () => {
+    keys['touchstart'] = true;
+    if (!pause && !gameOver) {
+        jump;
+    }
+});
+document.addEventListener('touchend', () => {
+    keys['touchstart'] = false;
+});
+document.addEventListener('touchcancel', () => {
+    keys['touchstart'] = false; // Ensure touch key resets on cancel
+});
 window.addEventListener('resize', () => {
     // Resize the 3D canvas
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -280,21 +299,61 @@ async function setupAndStartGame() {
 
         // create the scene
         createScene();
+        let loopcount = 0;
+        while (loopcount < 100) { //for the moment allow 100 replays
+            loopcount++;
+            // console.log("TEST-2", loopcount);
+            //initializeScene
+            initializeScene();
 
-        // run the intro
-        await intro();
+            // run the intro
+            await intro();
 
-        //character starts running
-        runningAction = charaDict.ANIMATIONS.RUNNING;
-        runningAction.play();
+            //character starts running
+            runningAction = charaDict.ANIMATIONS.RUNNING;
+            runningAction.play();
 
-        // Start animation loop
-        animate();
+            // Reset the clock to start from 0
+            clock.start();
+
+            // Start animation loop
+            requestAnimationFrame(animate);
+            // console.log("TEST-11", loopcount);
+
+            await waitForGameOver();
+            runningAction.stop();
+
+            // console.log("TEST-1", loopcount);
+            await gameOverSequence();
+            // console.log("TEST0", loopcount);
+
+            // // After game over, we reset the game asynchronously
+            // await promptToRestart();
+            // console.log("TEST1", loopcount);
+
+        }
+        console.error("max replay reached: refresh your browser", error);
+        // console.log("TEST");
+        // console.log("TEST");
 
     } catch (error) {
         console.error("Error in scene setup or animation:", error);
     }
 }
+
+async function promptToRestart() {
+    return new Promise(resolve => {
+        const checkRestartKey = () => {
+            const anyTrue = Object.values(keys).some(value => value === true);
+            if (anyTrue) {
+                resolve();
+            } else {
+                requestAnimationFrame(checkRestartKey); // Keep checking on each frame
+            }
+        };
+        checkRestartKey(); // Start checking
+    });
+};
 
 /*-----------------------------------------------------*/
 // intro function
@@ -313,6 +372,38 @@ async function intro() {
 }
 
 /*-----------------------------------------------------*/
+// gameOver function
+/*-----------------------------------------------------*/
+async function waitForGameOver() {
+    // Wait for the game over flag to be set
+    await new Promise(resolve => {
+        const checkGameOverInterval = setInterval(() => {
+            if (gameOver) {
+                clearInterval(checkGameOverInterval);  // Stop checking
+                resolve();  // Resolve the promise
+            }
+        }, 100);  // Check every 100ms if the game is over
+    });
+}
+
+async function gameOverSequence() {
+    console.log("GAMEOVER")
+    messageScreen = "GAMEOVER";
+    drawHUD();
+    renderer.render(scene, camera);
+    await waitFor(1);
+    messageScreen = isMobile() ? "Tap to replay" : "press any key to replay";
+    drawHUD();
+    renderer.render(scene, camera);
+    // wait for input
+    await promptToRestart();
+    messageScreen = "";
+    drawHUD();
+    renderer.render(scene, camera);
+    await waitFor(0.5);
+}
+
+/*-----------------------------------------------------*/
 // GAMEPLAY FUNCTIONS
 /*-----------------------------------------------------*/
 
@@ -320,11 +411,12 @@ async function intro() {
 
 function isDead() {
     if (player.position.y <= deathPlaneHeight) {
-        console.log("GAMEOVER")
-        messageScreen = "GAMEOVER";
-        doPause();
-        return true;
-    } else {
+        // console.log("GAMEOVER")
+        // messageScreen = "GAMEOVER";
+        // doPause();
+        // return true;
+        // } else {
+        gameOver = true;
         return false;
     }
 }
@@ -388,12 +480,10 @@ function jump() {
         console.log('JUMP');
         playerVerticalSpeed += jumpInitVerticalSpeed;
     }
-}   
+}
 
 // move Player function
-
-
-function movePlayer(delta) {
+function pauseAndDebug(delta) {
     if (freeCam) {
         const moveCam = moveSpeed * delta;
         if (gameActions.moveCamUp) camera.position.z -= moveCam;
@@ -404,10 +494,17 @@ function movePlayer(delta) {
         if (gameActions.moveCamBack) camera.position.y -= moveCam;
         // camera.lookAt(chara);
     }
+    if (debug) {
+        if (gameActions.forceGameOver)
+            gameOver = true;
+    }
 
     if (gameActions.pause) doPause();
+}
 
-    if (pause) return;
+function movePlayer(delta) {
+
+    // if (pause) return;
 
     if (gameActions.jump) jump();
 
@@ -416,7 +513,7 @@ function movePlayer(delta) {
     ) {
         player.position.y += playerVerticalSpeed * delta;
         isTouchingGround = isCollidingGrounds(); //collision check
-        gameOver = isDead();
+        isDead();
         if (isTouchingGround == null) {
             playerVerticalSpeed -= gravitySpeedDecrement * delta;
         } else {
@@ -444,9 +541,9 @@ function moveGround(thisGround, delta) {
     thisGround.position.x -= groundSpeed * delta;
     if (thisGround.position.x < groundLimit) {
         let curScaleX = groundLength * getRandom(groundLengthRatioMin, groundLengthRatioMax);
-        let groundMat = buildMat;
+        let groundMat = matDict.BUILDING;
         if ((curScaleX / groundHeight) < 0.15)
-            groundMat = buildHalfMat;
+            groundMat = matDict.HALFBUILDING;
         thisGround.material = groundMat;
         thisGround.position.x = groundInitPos;
         thisGround.scale.set(curScaleX, groundHeight, curScaleX);
@@ -475,20 +572,23 @@ function moveBG(delta) {
 function animate() {
     // console.log('frame',frameCount++)
     deltaTime = clock.getDelta(); // Time elapsed since last frame
-    movePlayer(deltaTime);
     drawHUD();
+    pauseAndDebug(deltaTime);
     if (!pause) {
+        movePlayer(deltaTime);
         moveGrounds(deltaTime);
         moveBG(deltaTime);
         updateAnimations(charaMixer, deltaTime);
     }
     renderer.render(scene, camera);
     frameCount++;
-    //clear the onpress/onrelease events now that they have been sampled 
+    //clear the onpress/onrelease actions now that they have been sampled 
     //in that loop to avoid resampling
-    releaseStickyActions();
+    releaseSingleEventActions();
 
-    requestAnimationFrame(animate); //call animate recursively on next frame 
+    if (!gameOver) {
+        requestAnimationFrame(animate); //call animate recursively on next frame 
+    }
 }
 
 // drawHUD loop
@@ -522,37 +622,45 @@ function createScene() {
     /*--------*/
     //city background
     /*--------*/
-    let posX = -citySpriteScale;
+    // let posX = -citySpriteScale;
     for (let i = 0; i < numCitySprites; i++) {
-        const citySprite = createSprite(matDict.CITY, posX, citySpriteDepth, citySpriteHeight, citySpriteScale, 0)
+        // const citySprite = createPlane(matDict.CITY, posX, citySpriteDepth, citySpriteHeight, citySpriteScale, 0)
+        const citySprite = createPlane(matDict.CITY)
         scene.add(citySprite);
-        citySprite.visible = !hideBg;
+
+
+        // citySprite.position.set(posx, citySpriteHeight, citySpriteDepth);  // Set the position of the tree sprite in the scene
+        // citySprite.rotation.x = 0;
+        // citySprite.rotation.y = 0;
+        // citySprite.scale.set(citySpriteScale, citySpriteScale, citySpriteScale);
+        // citySprite.visible = !hideBg;
+
         citySprites.push(citySprite);
-        posX += citySpriteScale;
+        // posX += citySpriteScale;
     }
 
     /*--------*/
     //buildings
     /*--------*/
     const groundGeom = new THREE.BoxGeometry();
-    buildMat = matDict.BUILDING;
-    buildHalfMat = matDict.HALFBUILDING;
+    // buildMat = matDict.BUILDING;
+    // buildHalfMat = matDict.HALFBUILDING;
     // buildHalfMat = new THREE.MeshBasicMaterial({ color: 0xB8B8B8 });
-    let groundMat = buildMat;
+    // let groundMat = buildMat;
 
-    posX = ((groundLength / 2));//- 0.01); //small offset
-    let curScaleX = groundLength
+    // let posX = ((groundLength / 2));//- 0.01); //small offset
+    // let curScaleX = groundLength
     for (let i = 0; i < numPlat; i++) {
-        curScaleX = (i != 0) ? (groundLength * getRandom(groundLengthRatioMin, groundLengthRatioMax)) : groundLength;
-        groundMat = buildMat;
-        if ((curScaleX / groundHeight) < 0.15)
-            groundMat = buildHalfMat;
-        const ground = new THREE.Mesh(groundGeom, groundMat);
-        ground.scale.set(curScaleX, groundHeight, curScaleX);
-        ground.position.set(posX,
-            (i != 0) ? (groundCenterY + getRandom(groundMinY, groundMaxY)) : groundCenterY,
-            0);
-        posX += groundLength + groundGap
+        // curScaleX = (i != 0) ? (groundLength * getRandom(groundLengthRatioMin, groundLengthRatioMax)) : groundLength;
+        // groundMat = buildMat;
+        // if ((curScaleX / groundHeight) < 0.15)
+        //     groundMat = buildHalfMat;
+        const ground = new THREE.Mesh(groundGeom, matDict.BUILDING);
+        // ground.scale.set(curScaleX, groundHeight, curScaleX);
+        // ground.position.set(posX,
+        // (i != 0) ? (groundCenterY + getRandom(groundMinY, groundMaxY)) : groundCenterY,
+        // 0);
+        // posX += groundLength + groundGap
         // ground.visible = false;
         scene.add(ground);
         grounds.push(ground);
@@ -591,13 +699,95 @@ function createScene() {
     }
 }
 
-// releaseStickyActions
-function releaseStickyActions() {
+function initializeScene() {
+
+    //initialize gameOver
+    gameOver = false;
+
+    //clear score and reinitialize lives
+    score = 0;
+    lives = 3;
+
+    //reset message
+    messageScreen = ""
+
+    //reset collision test start id
+    nextColIdx = 0;
+
+    /*--------*/
+    //city background
+    /*--------*/
+    let posX = -citySpriteScale;
+    for (let i = 0; i < numCitySprites; i++) {
+        const citySprite = citySprites[i];
+        citySprite.position.set(posX, citySpriteHeight, citySpriteDepth);  // Set the position of the tree sprite in the scene
+        citySprite.rotation.x = 0;
+        citySprite.rotation.y = 0;
+        citySprite.scale.set(citySpriteScale, citySpriteScale, citySpriteScale);
+        citySprite.visible = !hideBg;
+        posX += citySpriteScale;
+    }
+
+    /*--------*/
+    //buildings
+    /*--------*/
+    let buildMat, buildHalfMat;
+    buildMat = matDict.BUILDING;
+    buildHalfMat = matDict.HALFBUILDING;
+    let groundMat = buildMat;
+
+    let posGroundX = ((groundLength / 2));//- 0.01); //small offset
+    let curScaleX = groundLength
+    for (let i = 0; i < numPlat; i++) {
+        let ground = grounds[i];
+        curScaleX = (i != 0) ? (groundLength * getRandom(groundLengthRatioMin, groundLengthRatioMax)) : groundLength;
+        groundMat = buildMat;
+        if ((curScaleX / groundHeight) < 0.15)
+            groundMat = buildHalfMat;
+        ground.material = groundMat;
+        ground.scale.set(curScaleX, groundHeight, curScaleX);
+        ground.position.set(posGroundX,
+            (i != 0) ? (groundCenterY + getRandom(groundMinY, groundMaxY)) : groundCenterY,
+            0);
+        posGroundX += groundLength + groundGap
+        // ground.visible = false;
+        // scene.add(ground);
+        // grounds.push(ground);
+    }
+
+    /*--------*/
+    //player box (invisible/for collision only)
+    /*--------*/
+    // const playerGeometry = new THREE.BoxGeometry();
+    // playerGeometry.translate(0, 0.5, 0);
+    // const playerMaterial = matDict.CRATE;
+    // player = new THREE.Mesh(playerGeometry, playerMaterial);
+    // player.visible = false; // Hide the player mesh from the scene
+    // scene.add(player);
+    // camera.lookAt(player.position);
+    player.position.set(0, 0, 0);
+
+    /*--------*/
+    //character mesh
+    /*--------*/
+    let chara = charaDict.MESH;
+    chara.position.y = player.position.y;
+    // let chara = charaDict.MESH
+    // let charaScale = 0.013;
+    // chara.scale.set(charaScale, charaScale, charaScale); // Scale down if model is too large
+    // chara.rotation.set(0, Math.PI / 2, 0);
+    // chara.position.set(0, -0.5, 0);
+    // scene.add(chara);
+
+}
+
+// releaseSingleEventActions
+function releaseSingleEventActions() {
     for (const [action, actionValue] of Object.entries(gameActions)) {
         if (actionValue) {
             let mapping = gameActionToKeyMap[action];
             if (mapping)
-                if (mapping.OnPress || mapping.OnRelease){
+                if (mapping.OnPress || mapping.OnRelease) {
                     gameActions[action] = false
                     // console.log("Releasing gameaction",gameActions[action]);
                 }
