@@ -59,7 +59,7 @@ let hideBg = false;
 let freeCam = false;
 let showDeathPlane = false;
 
-if (1) {
+if (0) {
     debug = true;
     farView = false;
     hideBg = false;
