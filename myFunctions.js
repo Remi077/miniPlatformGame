@@ -156,22 +156,22 @@ function updateHUD() {
 }
 
 
-/* createSprite */
+/* createPlane */
 
-export function createSprite(imageMat, posx = 0, posy = 0, posz = 0, scale = 1, rotx = 0, roty = 0, transparent = true) {
+// export function createPlane(imageMat, posx = 0, posy = 0, posz = 0, scale = 1, rotx = 0, roty = 0, transparent = true) {
+export function createPlane(imageMat, transparent = true) {
 
     // Create a plane geometry for the tree sprite
     const imageGeometry = new THREE.PlaneGeometry(1, 1);  // Adjust size as needed
     const sprite = new THREE.Mesh(imageGeometry, imageMat);
 
-    sprite.position.set(posx, posz, posy);  // Set the position of the tree sprite in the scene
-    sprite.rotation.x = rotx;
-    sprite.rotation.y = roty;
-    sprite.scale.set(scale, scale, scale);
-
-    // scene.add(sprite);
+    // sprite.position.set(posx, posz, posy);  // Set the position of the tree sprite in the scene
+    // sprite.rotation.x = rotx;
+    // sprite.rotation.y = roty;
+    // sprite.scale.set(scale, scale, scale);
 
     return sprite;
+
 };
 
 /* createMaterial */
