@@ -17,7 +17,7 @@ import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.055"; // Replace with actual Git hash
+const revision = "1.056"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -81,7 +81,7 @@ const moveSpeed = 5;
 const groundSpeed = debug ? 0 : (isMobile() ? 9 * 0.9 : 9);
 // const gravitySpeedDecrement = isMobile() ? 35 * 0.9 : 35;
 // const jumpInitVerticalSpeed = 12;
-const gravitySpeedDecrement = isMobile() ? 50 * 0.9 : 50;
+const gravitySpeedDecrement = isMobile() ? 50 * 0.95 : 50;
 const jumpInitVerticalSpeed = 15;
 
 //ground variables
