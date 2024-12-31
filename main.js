@@ -17,7 +17,7 @@ import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.053"; // Replace with actual Git hash
+const revision = "1.054"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -59,7 +59,7 @@ let hideBg = false;
 let freeCam = false;
 let showDeathPlane = false;
 
-if (0) {
+if (1) {
     debug = true;
     farView = false;
     hideBg = false;
@@ -243,8 +243,8 @@ document.addEventListener('keyup', (event) => {
 document.addEventListener('touchstart', () => {
     keys['touchstart'] = true;
     if (!pause && !gameOver) {
-        jump;
-    };
+        jump();
+    }
 });
 document.addEventListener('touchend', () => {
     keys['touchstart'] = false;
@@ -354,7 +354,7 @@ async function promptToRestart() {
         //reset keys in case some keyUp were made out of scope and not tracked correctly
         Object.keys(keys).forEach(key => {
             delete keys[key];
-        }); 
+        });
         checkRestartKey(); // Start checking
     });
 };
@@ -503,7 +503,7 @@ function pauseAndDebug(delta) {
             gameOver = true;
     }
 
-    if (gameActions.pause) 
+    if (gameActions.pause)
         doPause();
 }
 
