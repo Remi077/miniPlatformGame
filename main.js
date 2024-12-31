@@ -17,7 +17,7 @@ import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.05"; // Replace with actual Git hash
+const revision = "1.052"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -351,6 +351,10 @@ async function promptToRestart() {
                 requestAnimationFrame(checkRestartKey); // Keep checking on each frame
             }
         };
+        //reset keys in case some keyUp were made out of scope and not tracked correctly
+        Object.keys(keys).forEach(key => {
+            delete keys[key];
+        }); 
         checkRestartKey(); // Start checking
     });
 };
@@ -499,7 +503,8 @@ function pauseAndDebug(delta) {
             gameOver = true;
     }
 
-    if (gameActions.pause) doPause();
+    if (gameActions.pause) 
+        doPause();
 }
 
 function movePlayer(delta) {
@@ -701,8 +706,14 @@ function createScene() {
 
 function initializeScene() {
 
-    //initialize gameOver
+    //reset gameOver
     gameOver = false;
+
+    //reset pause
+    pause = false;
+
+    //clear all game actions
+    gameActions = {};
 
     //clear score and reinitialize lives
     score = 0;
