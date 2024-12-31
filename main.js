@@ -126,8 +126,8 @@ const keys = {};
 let playerVerticalSpeed = 0;
 let isTouchingGround = null;
 // let hasJumped = false;
-let keyAPressed = false;//TODO: make it a dictionary
-let keyPPressed = false;
+// let keyAPressed = false;//TODO: make it a dictionary
+// let keyPPressed = false;
 let citySpriteLeftIdx = 0;
 let frameCount = 0;
 let deltaTime;
@@ -713,6 +713,9 @@ function initializeScene() {
 
     //reset collision test start id
     nextColIdx = 0;
+
+    //initialize background first panel id
+    citySpriteLeftIdx = 0;
 
     /*--------*/
     //city background
