@@ -244,7 +244,7 @@ document.addEventListener('touchstart', () => {
     keys['touchstart'] = true;
     if (!pause && !gameOver) {
         jump;
-    }
+    };
 });
 document.addEventListener('touchend', () => {
     keys['touchstart'] = false;
