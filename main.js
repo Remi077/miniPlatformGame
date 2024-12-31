@@ -17,7 +17,7 @@ import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.054"; // Replace with actual Git hash
+const revision = "1.055"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -79,8 +79,10 @@ const groundGap = 2;
 //speeds
 const moveSpeed = 5;
 const groundSpeed = debug ? 0 : (isMobile() ? 9 * 0.9 : 9);
-const gravitySpeedDecrement = isMobile() ? 35 * 0.9 : 35;
-const jumpInitVerticalSpeed = 12;
+// const gravitySpeedDecrement = isMobile() ? 35 * 0.9 : 35;
+// const jumpInitVerticalSpeed = 12;
+const gravitySpeedDecrement = isMobile() ? 50 * 0.9 : 50;
+const jumpInitVerticalSpeed = 15;
 
 //ground variables
 const groundInitPos = (numPlat - numPlatToTheLeft) * (groundLength + groundGap);
@@ -119,15 +121,9 @@ let charaMixer;
 let player;
 let grounds = [];
 let citySprites = [];
-// let buildMat, buildHalfMat;
 const keys = {};
-// let keysOnPress = {};
-// let keysOnRelease = {};
 let playerVerticalSpeed = 0;
 let isTouchingGround = null;
-// let hasJumped = false;
-// let keyAPressed = false;//TODO: make it a dictionary
-// let keyPPressed = false;
 let citySpriteLeftIdx = 0;
 let frameCount = 0;
 let deltaTime;
@@ -135,6 +131,8 @@ let pause = false;
 let nextColIdx = 0;
 let runningAction;
 let score = 0;
+let newgroundSpeed = groundSpeed;
+let newbgSpeed = bgSpeed;
 let lives = 3;
 let messageScreen = "";
 let gameOver = false;
@@ -302,7 +300,6 @@ async function setupAndStartGame() {
         let loopcount = 0;
         while (loopcount < 100) { //for the moment allow 100 replays
             loopcount++;
-            // console.log("TEST-2", loopcount);
             //initializeScene
             initializeScene();
 
@@ -318,23 +315,13 @@ async function setupAndStartGame() {
 
             // Start animation loop
             requestAnimationFrame(animate);
-            // console.log("TEST-11", loopcount);
 
             await waitForGameOver();
             runningAction.stop();
 
-            // console.log("TEST-1", loopcount);
             await gameOverSequence();
-            // console.log("TEST0", loopcount);
-
-            // // After game over, we reset the game asynchronously
-            // await promptToRestart();
-            // console.log("TEST1", loopcount);
-
         }
         console.error("max replay reached: refresh your browser", error);
-        // console.log("TEST");
-        // console.log("TEST");
 
     } catch (error) {
         console.error("Error in scene setup or animation:", error);
@@ -415,13 +402,7 @@ async function gameOverSequence() {
 
 function isDead() {
     if (player.position.y <= deathPlaneHeight) {
-        // console.log("GAMEOVER")
-        // messageScreen = "GAMEOVER";
-        // doPause();
-        // return true;
-        // } else {
         gameOver = true;
-        return false;
     }
 }
 
@@ -509,8 +490,6 @@ function pauseAndDebug(delta) {
 
 function movePlayer(delta) {
 
-    // if (pause) return;
-
     if (gameActions.jump) jump();
 
     if (gameActions.moveByOneFrame
@@ -527,10 +506,6 @@ function movePlayer(delta) {
         }
     }
 
-    //     Check for collision
-    // if (isColliding(player, ground)) {
-    //     console.log('Collision detected!');
-    // }
     let chara = charaDict.MESH;
     chara.position.y = player.position.y;
 
@@ -543,7 +518,7 @@ function moveGrounds(delta) {
 }
 
 function moveGround(thisGround, delta) {
-    thisGround.position.x -= groundSpeed * delta;
+    thisGround.position.x -= newgroundSpeed * delta;
     if (thisGround.position.x < groundLimit) {
         let curScaleX = groundLength * getRandom(groundLengthRatioMin, groundLengthRatioMax);
         let groundMat = matDict.BUILDING;
@@ -560,7 +535,7 @@ function moveGround(thisGround, delta) {
 // moveBG function
 
 function moveBG(delta) {
-    let leftSpritePosX = citySprites[citySpriteLeftIdx].position.x - (bgSpeed * delta);
+    let leftSpritePosX = citySprites[citySpriteLeftIdx].position.x - (newbgSpeed * delta);
     let posX = leftSpritePosX;
     for (let i = 0; i < numCitySprites; i++) {
         let idx = (citySpriteLeftIdx + i) % numCitySprites;
@@ -584,6 +559,7 @@ function animate() {
         moveGrounds(deltaTime);
         moveBG(deltaTime);
         updateAnimations(charaMixer, deltaTime);
+        updateSpeed();
     }
     renderer.render(scene, camera);
     frameCount++;
@@ -624,49 +600,22 @@ function drawHUD() {
 
 // createScene loop
 function createScene() {
+
     /*--------*/
     //city background
     /*--------*/
-    // let posX = -citySpriteScale;
     for (let i = 0; i < numCitySprites; i++) {
-        // const citySprite = createPlane(matDict.CITY, posX, citySpriteDepth, citySpriteHeight, citySpriteScale, 0)
         const citySprite = createPlane(matDict.CITY)
         scene.add(citySprite);
-
-
-        // citySprite.position.set(posx, citySpriteHeight, citySpriteDepth);  // Set the position of the tree sprite in the scene
-        // citySprite.rotation.x = 0;
-        // citySprite.rotation.y = 0;
-        // citySprite.scale.set(citySpriteScale, citySpriteScale, citySpriteScale);
-        // citySprite.visible = !hideBg;
-
         citySprites.push(citySprite);
-        // posX += citySpriteScale;
     }
 
     /*--------*/
     //buildings
     /*--------*/
     const groundGeom = new THREE.BoxGeometry();
-    // buildMat = matDict.BUILDING;
-    // buildHalfMat = matDict.HALFBUILDING;
-    // buildHalfMat = new THREE.MeshBasicMaterial({ color: 0xB8B8B8 });
-    // let groundMat = buildMat;
-
-    // let posX = ((groundLength / 2));//- 0.01); //small offset
-    // let curScaleX = groundLength
     for (let i = 0; i < numPlat; i++) {
-        // curScaleX = (i != 0) ? (groundLength * getRandom(groundLengthRatioMin, groundLengthRatioMax)) : groundLength;
-        // groundMat = buildMat;
-        // if ((curScaleX / groundHeight) < 0.15)
-        //     groundMat = buildHalfMat;
         const ground = new THREE.Mesh(groundGeom, matDict.BUILDING);
-        // ground.scale.set(curScaleX, groundHeight, curScaleX);
-        // ground.position.set(posX,
-        // (i != 0) ? (groundCenterY + getRandom(groundMinY, groundMaxY)) : groundCenterY,
-        // 0);
-        // posX += groundLength + groundGap
-        // ground.visible = false;
         scene.add(ground);
         grounds.push(ground);
     }
@@ -719,6 +668,10 @@ function initializeScene() {
     score = 0;
     lives = 3;
 
+    //resets speeds
+    newgroundSpeed = groundSpeed;
+    newbgSpeed = bgSpeed;
+
     //reset message
     messageScreen = ""
 
@@ -764,21 +717,11 @@ function initializeScene() {
             (i != 0) ? (groundCenterY + getRandom(groundMinY, groundMaxY)) : groundCenterY,
             0);
         posGroundX += groundLength + groundGap
-        // ground.visible = false;
-        // scene.add(ground);
-        // grounds.push(ground);
     }
 
     /*--------*/
     //player box (invisible/for collision only)
     /*--------*/
-    // const playerGeometry = new THREE.BoxGeometry();
-    // playerGeometry.translate(0, 0.5, 0);
-    // const playerMaterial = matDict.CRATE;
-    // player = new THREE.Mesh(playerGeometry, playerMaterial);
-    // player.visible = false; // Hide the player mesh from the scene
-    // scene.add(player);
-    // camera.lookAt(player.position);
     player.position.set(0, 0, 0);
 
     /*--------*/
@@ -786,12 +729,6 @@ function initializeScene() {
     /*--------*/
     let chara = charaDict.MESH;
     chara.position.y = player.position.y;
-    // let chara = charaDict.MESH
-    // let charaScale = 0.013;
-    // chara.scale.set(charaScale, charaScale, charaScale); // Scale down if model is too large
-    // chara.rotation.set(0, Math.PI / 2, 0);
-    // chara.position.set(0, -0.5, 0);
-    // scene.add(chara);
 
 }
 
@@ -807,4 +744,19 @@ function releaseSingleEventActions() {
                 }
         }
     }
+}
+
+let ts = 70; //speed tweak variable
+let ms = isMobile()? 0.15 : 0.3; //max speed gain
+function updateSpeed() {
+    // newgroundSpeed = groundSpeed * (1 + Math.abs(Math.sin((score / ts)*(Math.PI/2)))*0.3);
+
+    if ((Math.floor(score / ts) % 2) == 0) {
+        // console.log('accelerating', newgroundSpeed);
+        newgroundSpeed = groundSpeed * (1 + ((score%ts) / ts)*ms);
+    } else {
+        // console.log('decelerating', newgroundSpeed);
+        newgroundSpeed = groundSpeed * (1 + ((ts-(score%ts)) / ts)*ms);
+    }
+    newbgSpeed = 0.75 * newgroundSpeed;
 }
