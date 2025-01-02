@@ -519,7 +519,7 @@ function movePlayer(delta) {
             //was not touching ground, now touching ground
             hasJumped = false;
             endJumpHeight = player.position.y;
-            console.log("difference height:", startJumpHeight - endJumpHeight, "groundHeightMaxDiff", 0.4 * groundHeightMaxDiff)
+            // console.log("difference height:", startJumpHeight - endJumpHeight, "groundHeightMaxDiff", 0.4 * groundHeightMaxDiff)
 
             if ((startJumpHeight - endJumpHeight) > (0.4 * groundHeightMaxDiff)) {
                 // if (true) {
