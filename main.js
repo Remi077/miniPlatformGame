@@ -17,7 +17,7 @@ import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.056"; // Replace with actual Git hash
+const revision = "1.057"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -127,6 +127,7 @@ let isTouchingGround = null;
 let citySpriteLeftIdx = 0;
 let frameCount = 0;
 let deltaTime;
+let deltaHUDTime;
 let pause = false;
 let nextColIdx = 0;
 let runningAction;
@@ -138,6 +139,11 @@ let messageScreen = "";
 let gameOver = false;
 let gameActions = {}
 //TODO create a game state + game state manager
+
+let messageScale = 0;
+let messageTargetScale = 1;
+let messageScaleDuration = 0.8; //in seconds
+let messageScaleSpeed = messageTargetScale/messageScaleDuration;
 
 /*-----------------------------------------------------*/
 // SAVE STATES
@@ -352,13 +358,11 @@ async function promptToRestart() {
 
 async function intro() {
     messageScreen = "Get Ready...";
-    drawHUD();
-    renderer.render(scene, camera);
-    await waitFor(1);
+    await animateHUD(2,0.6);
+    await waitFor(0.5);
     messageScreen = "Go!";
-    drawHUD();
-    renderer.render(scene, camera);
-    await waitFor(1);
+    await animateHUD(2,0.4);
+    await waitFor(0.5);
     messageScreen = "";
 }
 
@@ -380,9 +384,10 @@ async function waitForGameOver() {
 async function gameOverSequence() {
     console.log("GAMEOVER")
     messageScreen = "GAMEOVER";
-    drawHUD();
-    renderer.render(scene, camera);
-    await waitFor(1);
+    await animateHUD(2,0.6);
+    await waitFor(0.5);
+    messageScale = 1;
+    messageTargetScale = 1;
     messageScreen = isMobile() ? "Tap to replay" : "press any key to replay";
     drawHUD();
     renderer.render(scene, camera);
@@ -572,30 +577,126 @@ function animate() {
     }
 }
 
-// drawHUD loop
-function drawHUD() {
+// // drawHUD loop
+// function drawHUD() {
 
-    // console.log("new score is ",score);
+//     // console.log("new score is ",score);
+//     // Clear the canvas for redrawing
+//     hudContext.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
+
+//     // Text box styles
+//     hudContext.font = '20px Arial';
+//     hudContext.fillStyle = 'rgba(0, 0, 0, 0.9)';
+//     hudContext.textAlign = 'left';
+
+//     // Draw "Score" at the top-left corner
+//     hudContext.fillText(`Score: ${score}`, 10, 30); // 10px from left, 30px from top
+
+//     // Draw "Lives" at the top-right corner
+//     hudContext.textAlign = 'right'; // Align text to the right edge
+//     hudContext.fillText(`Lives: ${lives}`, hudCanvas.width - 10, 30); // 10px from right, 30px from top
+
+//     // Draw a message in the center
+//     hudContext.fillStyle = 'rgba(255, 0, 0, 0.9)';
+//     hudContext.font = '60px Arial';
+//     hudContext.textAlign = 'center'; // Align text to the center
+//     hudContext.fillText(messageScreen, hudCanvas.width / 2, hudCanvas.height / 2); // Centered horizontally and vertically
+// }
+
+function drawHUD(delta = 1) {
     // Clear the canvas for redrawing
     hudContext.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
 
     // Text box styles
     hudContext.font = '20px Arial';
-    hudContext.fillStyle = 'rgba(0, 0, 0, 0.9)';
     hudContext.textAlign = 'left';
 
-    // Draw "Score" at the top-left corner
-    hudContext.fillText(`Score: ${score}`, 10, 30); // 10px from left, 30px from top
+    // Draw "Score" at the top-left corner with a surrounding rectangle
+    const scoreText = `Score: ${score}`;
+    const scoreMetrics = hudContext.measureText(scoreText);
+    const scorePadding = 10; // Padding for the rectangle
+    const scoreRectWidth = scoreMetrics.width + scorePadding * 2;
+    const scoreRectHeight = 30; // Fixed height for simplicity
+    hudContext.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    // hudContext.fillRect(5, 5, scoreRectWidth, scoreRectHeight); // Rectangle for score
+    hudContext.fillStyle = 'black';
+    hudContext.fillText(scoreText, 10, 25); // Text inside rectangle
 
-    // Draw "Lives" at the top-right corner
-    hudContext.textAlign = 'right'; // Align text to the right edge
-    hudContext.fillText(`Lives: ${lives}`, hudCanvas.width - 10, 30); // 10px from right, 30px from top
+    // Draw "Lives" at the top-right corner with a surrounding rectangle
+    hudContext.textAlign = 'right';
+    const livesText = `Lives: ${lives}`;
+    const livesMetrics = hudContext.measureText(livesText);
+    const livesRectWidth = livesMetrics.width + scorePadding * 2;
+    const livesRectX = hudCanvas.width - livesRectWidth - 5; // Position from the right edge
+    hudContext.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    // hudContext.fillRect(livesRectX, 5, livesRectWidth, scoreRectHeight); // Rectangle for lives
+    hudContext.fillStyle = 'black';
+    hudContext.fillText(livesText, hudCanvas.width - 10, 25); // Text inside rectangle
 
-    // Draw a message in the center
-    hudContext.fillStyle = 'rgba(255, 0, 0, 0.9)';
+    // Draw a message in the center with a surrounding rectangle
+    // hudContext.textAlign = 'center';
+    // hudContext.font = '60px Arial';
+    // const messageMetrics = hudContext.measureText(messageScreen);
+    // const messagePadding = 20; // Padding for the rectangle
+    // const messageRectWidth = messageMetrics.width + messagePadding * 2;
+    // const messageRectHeight = 80; // Fixed height for simplicity
+    // const messageRectX = (hudCanvas.width - messageRectWidth) / 2; // Centered horizontally
+    // const messageRectY = (hudCanvas.height - messageRectHeight) / 2; // Centered vertically
+    // hudContext.fillStyle = 'rgba(255, 0, 0, 0.5)';
+    // hudContext.fillRect(messageRectX, messageRectY, messageRectWidth, messageRectHeight); // Rectangle for message
+    // hudContext.fillStyle = 'white';
+    // hudContext.fillText(messageScreen, hudCanvas.width / 2, hudCanvas.height / 2 + 20); // Centered text
+
+    // Scaling the "Game Over" message
+    if (messageScale < messageTargetScale) {
+        messageScale += messageScaleSpeed * delta; // Gradually increase the scale
+        if (messageScale > messageTargetScale) {
+            messageScale = messageTargetScale; // Clamp to the target scale
+        }
+    }
+
+    hudContext.save(); // Save the current canvas state
+    hudContext.translate(hudCanvas.width / 2, hudCanvas.height / 2); // Move to the center
+    hudContext.scale(messageScale, messageScale); // Apply scaling
+
+    // Draw the "Game Over" message
     hudContext.font = '60px Arial';
-    hudContext.textAlign = 'center'; // Align text to the center
-    hudContext.fillText(messageScreen, hudCanvas.width / 2, hudCanvas.height / 2); // Centered horizontally and vertically
+    hudContext.textAlign = 'center';
+    hudContext.fillStyle = 'rgba(255, 0, 0, 0.9)';
+    hudContext.fillText(messageScreen, 0, 20); // Text is now centered and scaled
+    hudContext.restore(); // Restore the original canvas state
+
+}
+
+
+async function animateHUD(targetScale=1, scaleDuration=0.8) {
+    clock.start();//reset time
+    messageScale = 0;//reset scale
+    messageTargetScale = targetScale;
+    messageScaleDuration = scaleDuration; //in seconds
+    messageScaleSpeed = messageTargetScale/messageScaleDuration;
+    animateHUDLoop();
+    await animateHUDEnd();
+}
+
+function animateHUDLoop(targetSize, animTime) {
+    deltaHUDTime = clock.getDelta(); // Time elapsed since last frame
+    drawHUD(deltaHUDTime);
+    renderer.render(scene, camera);
+    if (messageScale < messageTargetScale) {
+        requestAnimationFrame(animateHUDLoop);
+    }
+}
+async function animateHUDEnd() {
+    // Wait for the game over flag to be set
+    await new Promise(resolve => {
+        const checkanimateHUDInterval = setInterval(() => {
+            if (messageScale >= messageTargetScale) {
+                clearInterval(checkanimateHUDInterval);  // Stop checking
+                resolve();  // Resolve the promise
+            }
+        }, 100);  // Check every 100ms if the game is over
+    });
 }
 
 // createScene loop
@@ -747,16 +848,16 @@ function releaseSingleEventActions() {
 }
 
 let ts = 70; //speed tweak variable
-let ms = isMobile()? 0.15 : 0.3; //max speed gain
+let ms = isMobile() ? 0.15 : 0.3; //max speed gain
 function updateSpeed() {
     // newgroundSpeed = groundSpeed * (1 + Math.abs(Math.sin((score / ts)*(Math.PI/2)))*0.3);
 
     if ((Math.floor(score / ts) % 2) == 0) {
         // console.log('accelerating', newgroundSpeed);
-        newgroundSpeed = groundSpeed * (1 + ((score%ts) / ts)*ms);
+        newgroundSpeed = groundSpeed * (1 + ((score % ts) / ts) * ms);
     } else {
         // console.log('decelerating', newgroundSpeed);
-        newgroundSpeed = groundSpeed * (1 + ((ts-(score%ts)) / ts)*ms);
+        newgroundSpeed = groundSpeed * (1 + ((ts - (score % ts)) / ts) * ms);
     }
     newbgSpeed = 0.75 * newgroundSpeed;
 }
