@@ -17,7 +17,7 @@ import seedrandom from 'https://cdn.skypack.dev/seedrandom';
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.057"; // Replace with actual Git hash
+const revision = "1.058"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
@@ -143,7 +143,7 @@ let gameActions = {}
 let messageScale = 0;
 let messageTargetScale = 1;
 let messageScaleDuration = 0.8; //in seconds
-let messageScaleSpeed = messageTargetScale/messageScaleDuration;
+let messageScaleSpeed = messageTargetScale / messageScaleDuration;
 
 /*-----------------------------------------------------*/
 // SAVE STATES
@@ -358,10 +358,10 @@ async function promptToRestart() {
 
 async function intro() {
     messageScreen = "Get Ready...";
-    await animateHUD(2,0.6);
+    await animateHUD(2, 0.6);
     await waitFor(0.5);
     messageScreen = "Go!";
-    await animateHUD(2,0.4);
+    await animateHUD(2, 0.4);
     await waitFor(0.5);
     messageScreen = "";
 }
@@ -384,7 +384,7 @@ async function waitForGameOver() {
 async function gameOverSequence() {
     console.log("GAMEOVER")
     messageScreen = "GAMEOVER";
-    await animateHUD(2,0.6);
+    await animateHUD(2, 0.6);
     await waitFor(0.5);
     messageScale = 1;
     messageTargetScale = 1;
@@ -669,12 +669,12 @@ function drawHUD(delta = 1) {
 }
 
 
-async function animateHUD(targetScale=1, scaleDuration=0.8) {
+async function animateHUD(targetScale = 1, scaleDuration = 0.8) {
     clock.start();//reset time
     messageScale = 0;//reset scale
-    messageTargetScale = targetScale;
+    messageTargetScale = isMobile() ? targetScale / 2 : targetScale;
     messageScaleDuration = scaleDuration; //in seconds
-    messageScaleSpeed = messageTargetScale/messageScaleDuration;
+    messageScaleSpeed = messageTargetScale / messageScaleDuration;
     animateHUDLoop();
     await animateHUDEnd();
 }
