@@ -128,7 +128,7 @@ export function alignHUBToCamera(sprite, thisCamera, alignX = 'center', alignY =
     // Unproject the screen position to world coordinates
     thisCamera.updateProjectionMatrix();
     vector.unproject(thisCamera);
-console.log("cam",thisCamera.position, thisCamera.rotation, thisCamera.projectionMatrix,oldVector,vector );
+    console.log("cam", thisCamera.position, thisCamera.rotation, thisCamera.projectionMatrix, oldVector, vector);
     // Ensure the sprite stays in view
     sprite.position.copy(vector);
 
@@ -358,7 +358,7 @@ export function loadAnimations(loader, mixer, animations) {
             console.warn(`Skipping entry with missing 'url' for key: ${key}`);
             return Promise.resolve([key, null]); // Return null for missing or invalid data
         }
-        return loadAnimation(loader, mixer, data.url).then(result => {
+        return loadAnimation(loader, mixer, data.url, data.startFrame, data.endFrame, data.playRate, data.frameRate).then(result => {
             return [key, result]; // Return the mesh
         });
     });
@@ -369,7 +369,19 @@ export function loadAnimations(loader, mixer, animations) {
 }
 
 /* loadAnimation */
-export function loadAnimation(loader, mixer, src) {
+export function loadAnimation(loader, mixer, src, startFrame, endFrame, playRate, frameRate) {
+    // Set default values if any of these parameters are undefined
+    const defaultStartFrame = 0;
+    const defaultPlayRate = 1.0; // Default playback speed
+    const defaultFrameRate = 30; // Default animation frame rate
+
+    let trim = startFrame || endFrame //does it need trimming
+    trim = false; //TODO: trimAnimationClip makes the game hang 
+    // Use the provided values or fallback to the default ones
+    startFrame = startFrame || defaultStartFrame;
+    playRate = playRate || defaultPlayRate;
+    frameRate = frameRate || defaultFrameRate;
+    const startTime = startFrame / frameRate;
     return new Promise((resolve, reject) => {
         loader.load(
             src,
@@ -378,9 +390,15 @@ export function loadAnimation(loader, mixer, src) {
                 // Extract the animation clips from the FBX
                 const animationClip = animationFBX.animations[0]; // Assuming the first animation is what you want
                 // Add the animation clip to the mixer
-                const action = mixer.clipAction(animationClip);
+                // const action = mixer.clipAction(animationClip);
+                // If endTime is undefined, use the clip's duration as the default value
+                const endTime = endFrame ? endFrame / frameRate : animationClip.duration; // Default to the full duration of the animation clip
+                const trimmedClip = trim ?
+                    trimAnimationClip(animationClip, startTime, endTime) :
+                    animationClip;
+                const action = mixer.clipAction(trimmedClip);
+                action.setEffectiveTimeScale(playRate);
 
-                // action.play();
                 resolve(action); // Resolve the promise with the loaded object
             },
             undefined, // Progress callback
@@ -416,4 +434,21 @@ export function waitFor(seconds) {
     return new Promise((resolve) => {
         setTimeout(resolve, seconds * 1000); // Resolve the promise after 3 seconds
     });
+}
+
+// Trim the animation clip to play only a portion (startTime to endTime)
+//TODO this function hangs the game
+export function trimAnimationClip(clip, startTime, endTime) {
+    const duration = endTime - startTime;
+    const tracks = clip.tracks.map((track) => {
+        // Slicing the animation tracks
+        const trimmed = track.clone();
+        trimmed.times = track.times.filter(
+            (time) => time >= startTime && time <= endTime
+        ).map((time) => time - startTime);
+        trimmed.values = track.values.slice(0, trimmed.times.length * track.getValueSize());
+        return trimmed;
+    });
+
+    return new THREE.AnimationClip(clip.name, duration, tracks);
 }

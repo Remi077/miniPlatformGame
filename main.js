@@ -89,6 +89,7 @@ const groundInitPos = (numPlat - numPlatToTheLeft) * (groundLength + groundGap);
 const groundLimit = -numPlatToTheLeft * (groundLength + groundGap);
 const groundMinY = -1.5;
 const groundMaxY = 1.5;
+const groundHeightMaxDiff = groundMaxY - groundMinY
 const groundLengthRatioMin = 0.35;
 const groundLengthRatioMax = 1;
 const groundHeight = 30;
@@ -117,6 +118,7 @@ const bgInitPos = (numCitySprites - numCitySpritesToTheLeft - 1) * citySpriteSca
 let resourcesDict = {}; //resources dictionary
 let matDict = {}; //material dictionary
 let charaDict = {}; //meshes dictionary
+let animDict = {}; //meshes dictionary
 let charaMixer;
 let player;
 let grounds = [];
@@ -124,13 +126,14 @@ let citySprites = [];
 const keys = {};
 let playerVerticalSpeed = 0;
 let isTouchingGround = null;
+let isTouchingGroundPrev = null;
 let citySpriteLeftIdx = 0;
 let frameCount = 0;
 let deltaTime;
 let deltaHUDTime;
 let pause = false;
 let nextColIdx = 0;
-let runningAction;
+let hasJumped = false;
 let score = 0;
 let newgroundSpeed = groundSpeed;
 let newbgSpeed = bgSpeed;
@@ -138,6 +141,9 @@ let lives = 3;
 let messageScreen = "";
 let gameOver = false;
 let gameActions = {}
+let startJumpHeight, endJumpHeight;
+let ts = 70; //speed tweak variable
+let ms = isMobile() ? 0.15 : 0.3; //max speed gain
 //TODO create a game state + game state manager
 
 let messageScale = 0;
@@ -299,6 +305,7 @@ async function setupAndStartGame() {
         resourcesDict = await loadResourcesFromJson('resources.json');
         matDict = resourcesDict.IMAGES;
         charaDict = resourcesDict.MESHES.CHARA;
+        animDict = charaDict.ANIMATIONS;
         charaMixer = charaDict.MIXER;
 
         // create the scene
@@ -313,8 +320,7 @@ async function setupAndStartGame() {
             await intro();
 
             //character starts running
-            runningAction = charaDict.ANIMATIONS.RUNNING;
-            runningAction.play();
+            playThisAction("RUNNING");
 
             // Reset the clock to start from 0
             clock.start();
@@ -323,7 +329,7 @@ async function setupAndStartGame() {
             requestAnimationFrame(animate);
 
             await waitForGameOver();
-            runningAction.stop();
+            stopAllActions();
 
             await gameOverSequence();
         }
@@ -465,10 +471,12 @@ function isColliding(object1, object2) {
 // jump function
 
 function jump() {
-    // console.log('ACTIONJUMP');
     if (isTouchingGround != null) {
         console.log('JUMP');
+        hasJumped = true;
+        startJumpHeight = player.position.y;
         playerVerticalSpeed += jumpInitVerticalSpeed;
+        playThisAction("JUMPING", true);
     }
 }
 
@@ -501,7 +509,25 @@ function movePlayer(delta) {
         || true
     ) {
         player.position.y += playerVerticalSpeed * delta;
+        isTouchingGroundPrev = isTouchingGround;
         isTouchingGround = isCollidingGrounds(); //collision check
+        if (isTouchingGroundPrev && !isTouchingGround && !hasJumped) {
+            //was touching ground, is not touching anymore and has not jumped
+            startJumpHeight = player.position.y;
+            playThisAction("FALLING");
+        } else if (!isTouchingGroundPrev && isTouchingGround) {
+            //was not touching ground, now touching ground
+            hasJumped = false;
+            endJumpHeight = player.position.y;
+            console.log("difference height:", startJumpHeight - endJumpHeight, "groundHeightMaxDiff", 0.4 * groundHeightMaxDiff)
+
+            if ((startJumpHeight - endJumpHeight) > (0.4 * groundHeightMaxDiff)) {
+                // if (true) {
+                playThisAction("ROLL", true);
+            } else {
+                playThisAction("RUNNING");
+            }
+        }
         isDead();
         if (isTouchingGround == null) {
             playerVerticalSpeed -= gravitySpeedDecrement * delta;
@@ -577,31 +603,7 @@ function animate() {
     }
 }
 
-// // drawHUD loop
-// function drawHUD() {
-
-//     // console.log("new score is ",score);
-//     // Clear the canvas for redrawing
-//     hudContext.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
-
-//     // Text box styles
-//     hudContext.font = '20px Arial';
-//     hudContext.fillStyle = 'rgba(0, 0, 0, 0.9)';
-//     hudContext.textAlign = 'left';
-
-//     // Draw "Score" at the top-left corner
-//     hudContext.fillText(`Score: ${score}`, 10, 30); // 10px from left, 30px from top
-
-//     // Draw "Lives" at the top-right corner
-//     hudContext.textAlign = 'right'; // Align text to the right edge
-//     hudContext.fillText(`Lives: ${lives}`, hudCanvas.width - 10, 30); // 10px from right, 30px from top
-
-//     // Draw a message in the center
-//     hudContext.fillStyle = 'rgba(255, 0, 0, 0.9)';
-//     hudContext.font = '60px Arial';
-//     hudContext.textAlign = 'center'; // Align text to the center
-//     hudContext.fillText(messageScreen, hudCanvas.width / 2, hudCanvas.height / 2); // Centered horizontally and vertically
-// }
+// drawHUD loop
 
 function drawHUD(delta = 1) {
     // Clear the canvas for redrawing
@@ -633,20 +635,6 @@ function drawHUD(delta = 1) {
     hudContext.fillStyle = 'black';
     hudContext.fillText(livesText, hudCanvas.width - 10, 25); // Text inside rectangle
 
-    // Draw a message in the center with a surrounding rectangle
-    // hudContext.textAlign = 'center';
-    // hudContext.font = '60px Arial';
-    // const messageMetrics = hudContext.measureText(messageScreen);
-    // const messagePadding = 20; // Padding for the rectangle
-    // const messageRectWidth = messageMetrics.width + messagePadding * 2;
-    // const messageRectHeight = 80; // Fixed height for simplicity
-    // const messageRectX = (hudCanvas.width - messageRectWidth) / 2; // Centered horizontally
-    // const messageRectY = (hudCanvas.height - messageRectHeight) / 2; // Centered vertically
-    // hudContext.fillStyle = 'rgba(255, 0, 0, 0.5)';
-    // hudContext.fillRect(messageRectX, messageRectY, messageRectWidth, messageRectHeight); // Rectangle for message
-    // hudContext.fillStyle = 'white';
-    // hudContext.fillText(messageScreen, hudCanvas.width / 2, hudCanvas.height / 2 + 20); // Centered text
-
     // Scaling the "Game Over" message
     if (messageScale < messageTargetScale) {
         messageScale += messageScaleSpeed * delta; // Gradually increase the scale
@@ -667,7 +655,6 @@ function drawHUD(delta = 1) {
     hudContext.restore(); // Restore the original canvas state
 
 }
-
 
 async function animateHUD(targetScale = 1, scaleDuration = 0.8) {
     clock.start();//reset time
@@ -847,11 +834,8 @@ function releaseSingleEventActions() {
     }
 }
 
-let ts = 70; //speed tweak variable
-let ms = isMobile() ? 0.15 : 0.3; //max speed gain
 function updateSpeed() {
     // newgroundSpeed = groundSpeed * (1 + Math.abs(Math.sin((score / ts)*(Math.PI/2)))*0.3);
-
     if ((Math.floor(score / ts) % 2) == 0) {
         // console.log('accelerating', newgroundSpeed);
         newgroundSpeed = groundSpeed * (1 + ((score % ts) / ts) * ms);
@@ -860,4 +844,30 @@ function updateSpeed() {
         newgroundSpeed = groundSpeed * (1 + ((ts - (score % ts)) / ts) * ms);
     }
     newbgSpeed = 0.75 * newgroundSpeed;
+}
+
+function playThisAction(thisAction, once = false) {
+    for (const [actionName, action] of Object.entries(animDict)) {
+        if (actionName == thisAction) {
+            if (once) {
+                action.reset().setLoop(THREE.LoopOnce, 1).play();
+                action.clampWhenFinished = true;  // Prevent roll from looping
+                //on finish default back to running always //TODO: doesnt work
+                // action.onFinished = () => {
+                //     console.log("action.onfinished")
+                //     animDict.RUNNING.reset().play();
+                // }
+            } else {
+                action.reset().play();
+            }
+        } else {
+            action.stop();
+        }
+    }
+}
+
+function stopAllActions() {
+    for (const [actionName, action] of Object.entries(charaDict.ANIMATIONS)) {
+        action.stop();
+    }
 }

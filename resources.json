@@ -43,6 +43,18 @@
             "animations": {
                 "RUNNING": {
                     "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/assets/Ty@Running.fbx"
+                },
+                "JUMPING": {
+                    "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/assets/Ty@Jumping.fbx"
+                },
+                "FALLING": {
+                    "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/assets/Ty@Falling.fbx"
+                },
+                "ROLL": {
+                    "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/assets/Ty@Roll.fbx",
+                    "startFrame": 7,
+                    "endFrame": 59,
+                    "playRate": 2.5
                 }
             }
         }
