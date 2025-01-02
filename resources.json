@@ -16,21 +16,21 @@
             "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/assets/crate.jpg"
         },
         "BUILDING": {
-            "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/building_seamless.jpg",
+            "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/assets/building_seamless.jpg",
             "repeat": {
                 "x": 1,
                 "y": 5
             }
         },
         "HALFBUILDING": {
-            "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/building_seamless.jpg",
+            "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/assets/building_seamless.jpg",
             "repeat": {
                 "x": 0.5,
                 "y": 5
             }
         },
         "CITY": {
-            "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/cityscape3.jpg",
+            "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/assets/cityscape3.jpg",
             "repeat": {
                 "x": 1,
                 "y": 1
@@ -39,10 +39,10 @@
     },
     "MESHES": {
         "CHARA": {
-            "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/Ty.fbx",
+            "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/assets/Ty.fbx",
             "animations": {
                 "RUNNING": {
-                    "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/Ty@Running.fbx"
+                    "url": "https://raw.githubusercontent.com/Remi077/miniPlatformGame/main/assets/Ty@Running.fbx"
                 }
             }
         }
