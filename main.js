@@ -10,14 +10,14 @@ import {
     loadResourcesFromJson,
     waitFor
 } from './myFunctions.js'
-import seedrandom from 'https://cdn.skypack.dev/seedrandom';
+import seedrandom from 'https://esm.sh/seedrandom';
 
 /*-----------------------------------------------------*/
 // REVISION NUMBER
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.06"; // Replace with actual Git hash
+const revision = "1.07; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
