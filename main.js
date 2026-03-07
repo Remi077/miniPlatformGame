@@ -17,7 +17,7 @@ import seedrandom from 'https://esm.sh/seedrandom';
 /*-----------------------------------------------------*/
 
 // revision hash
-const revision = "1.07; // Replace with actual Git hash
+const revision = "1.07"; // Replace with actual Git hash
 
 // Add it to the div
 document.getElementById('revision-info').innerText = `Version: ${revision}`;
